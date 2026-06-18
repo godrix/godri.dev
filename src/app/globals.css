@@ -1,26 +1,138 @@
 @import "tailwindcss";
-
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@import "../styles/neo-brutalism-tokens.css";
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  --color-nb-bg: #fffdf5;
+  --color-nb-bg-secondary: #fef08a;
+  --color-nb-primary: #facc15;
+  --color-nb-secondary: #60a5fa;
+  --color-nb-accent: #f472b6;
+  --color-nb-success: #4ade80;
+  --color-nb-warning: #fb923c;
+  --color-nb-danger: #f87171;
+  --color-nb-muted: #737373;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --font-display: var(--font-space-grotesk);
+  --font-body: var(--font-dm-sans);
+  --font-mono: var(--font-ibm-plex-mono);
+
+  --shadow-nb-sm: 2px 2px 0 0 #000000;
+  --shadow-nb: 4px 4px 0 0 #000000;
+  --shadow-nb-lg: 6px 6px 0 0 #000000;
+  --shadow-nb-xl: 8px 8px 0 0 #000000;
+
+  --radius-nb: 0px;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--nb-bg);
+  color: var(--nb-text-primary);
+  font-family: var(--font-body), sans-serif;
+  font-weight: 500;
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--font-display), sans-serif;
+}
+
+.prose-nb h2 {
+  font-family: var(--font-display), sans-serif;
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-top: 2rem;
+  margin-bottom: 0.75rem;
+  border-bottom: 2px solid #000;
+  padding-bottom: 0.5rem;
+}
+
+.prose-nb p {
+  margin-bottom: 1rem;
+  line-height: 1.7;
+}
+
+.prose-nb ul, .prose-nb ol {
+  margin-bottom: 1rem;
+  padding-left: 1.5rem;
+}
+
+.prose-nb li {
+  margin-bottom: 0.5rem;
+  line-height: 1.6;
+}
+
+.prose-nb code {
+  font-family: var(--font-mono), monospace;
+  background: var(--nb-bg-secondary);
+  border: 2px solid #000;
+  padding: 0.125rem 0.375rem;
+  font-size: 0.875rem;
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-up {
+  animation: slide-up 400ms ease-out both;
+}
+
+.animate-delay-1 { animation-delay: 50ms; }
+.animate-delay-2 { animation-delay: 100ms; }
+.animate-delay-3 { animation-delay: 150ms; }
+.animate-delay-4 { animation-delay: 200ms; }
+
+@keyframes wave {
+  0% { transform: rotate(0deg); }
+  10% { transform: rotate(14deg); }
+  20% { transform: rotate(-8deg); }
+  30% { transform: rotate(14deg); }
+  40% { transform: rotate(-4deg); }
+  50% { transform: rotate(10deg); }
+  60% { transform: rotate(0deg); }
+  100% { transform: rotate(0deg); }
+}
+
+.animate-wave {
+  animation: wave 2.5s ease-in-out infinite;
+}
+
+@keyframes page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes page-exit {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+}
+
+.animate-page-enter {
+  animation: page-enter 350ms ease-out both;
+}
+
+::view-transition-old(root) {
+  animation: page-exit 250ms ease-in both;
+}
+
+::view-transition-new(root) {
+  animation: page-enter 350ms ease-out both;
 }
