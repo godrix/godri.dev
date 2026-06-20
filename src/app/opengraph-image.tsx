@@ -22,6 +22,9 @@ export default function OpenGraphImage() {
       >
         <div
           style={{
+            display: "flex",
+            flexDirection: "row",
+            alignItems: "baseline",
             fontSize: 72,
             fontWeight: 900,
             color: "#000",
@@ -29,7 +32,9 @@ export default function OpenGraphImage() {
             marginBottom: 24,
           }}
         >
-          godri<span style={{ color: "#f472b6" }}>.</span>dev
+          <span>godri</span>
+          <span style={{ color: "#f472b6" }}>.</span>
+          <span>dev</span>
         </div>
         <div
           style={{
