@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Space_Grotesk, DM_Sans, IBM_Plex_Mono } from "next/font/google";
+import { SITE_NAME, SITE_URL } from "@/lib/metadata";
 import "./globals.css";
 
 const spaceGrotesk = Space_Grotesk({
@@ -22,19 +23,26 @@ const ibmPlexMono = IBM_Plex_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "godri.dev — Portfólio & Blog",
+    default: "godri.dev — Projetos & Artigos",
     template: "%s | godri.dev",
   },
   description:
-    "Portfólio pessoal em construção — projetos, livros e mini blog (conteúdo mock por enquanto).",
-  metadataBase: new URL("https://godri.dev"),
+    "Open source, software engineer e tech lead — projetos e artigos sobre dev e liderança técnica.",
+  metadataBase: new URL(SITE_URL),
   openGraph: {
-    title: "godri.dev",
-    description: "Portfólio pessoal em construção.",
-    url: "https://godri.dev",
-    siteName: "godri.dev",
+    title: SITE_NAME,
+    description: "Projetos e artigos de um dev da dimensão C-137.",
+    url: SITE_URL,
+    siteName: SITE_NAME,
     locale: "pt_BR",
     type: "website",
+    images: [{ url: "/opengraph-image", width: 1200, height: 630 }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: SITE_NAME,
+    description: "Projetos e artigos de um dev da dimensão C-137.",
+    images: ["/opengraph-image"],
   },
 };
 

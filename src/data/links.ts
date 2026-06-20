@@ -1,3 +1,6 @@
+import { QUERO_CAFE_PATH } from "@/data/pix";
+import { ANIVERSARIO_PATH } from "@/data/aniversario";
+
 export type SocialIcon = "github" | "twitter" | "linkedin" | "instagram";
 
 export type SocialLink = {
@@ -8,12 +11,40 @@ export type SocialLink = {
   color: "primary" | "secondary" | "accent" | "success" | "warning" | "white";
 };
 
+export type LinkTag =
+  | "livro"
+  | "produto"
+  | "servico"
+  | "ferramenta"
+  | "apoio";
+
+export const linkTagLabels: Record<LinkTag, string> = {
+  livro: "Livro",
+  produto: "Produto",
+  servico: "Serviço",
+  ferramenta: "Ferramenta",
+  apoio: "Apoio",
+};
+
+export const linkTagColors: Record<
+  LinkTag,
+  "primary" | "secondary" | "accent" | "success" | "warning" | "white"
+> = {
+  livro: "warning",
+  produto: "accent",
+  servico: "secondary",
+  ferramenta: "primary",
+  apoio: "success",
+};
+
 export type LinkItem = {
   id: string;
   label: string;
   description?: string;
   url: string;
+  tag?: LinkTag;
   color: "primary" | "secondary" | "accent" | "success" | "warning" | "white";
+  external?: boolean;
 };
 
 export type LinkGroup = {
@@ -24,7 +55,7 @@ export type LinkGroup = {
 
 export const profile = {
   name: "godri",
-  bio: "links · mock · em breve",
+  bio: "open source · software engineer · tech lead",
   avatar: "G",
 };
 
@@ -32,21 +63,21 @@ export const socialLinks: SocialLink[] = [
   {
     id: "github",
     label: "GitHub",
-    url: "#",
+    url: "https://github.com/godrix",
     icon: "github",
     color: "white",
   },
   {
     id: "twitter",
     label: "Twitter / X",
-    url: "#",
+    url: "https://twitter.com/godrizilla",
     icon: "twitter",
     color: "secondary",
   },
   {
     id: "linkedin",
     label: "LinkedIn",
-    url: "#",
+    url: "https://www.linkedin.com/in/carlosgodri/",
     icon: "linkedin",
     color: "white",
   },
@@ -61,49 +92,46 @@ export const socialLinks: SocialLink[] = [
 
 export const linkGroups: LinkGroup[] = [
   {
-    id: "livros",
-    title: "Livros",
+    id: "recomendacoes",
+    title: "Recomendações",
     links: [
       {
-        id: "livro-mock-01",
-        label: "Livro Mock 01",
-        description: "Link placeholder — Amazon em breve",
-        url: "#",
+        id: "engenharia-de-ia",
+        label: "Engenharia de IA",
+        description:
+          "Construindo aplicações com modelos de fundação — Chip Huyen · Amazon",
+        url: "https://a.co/d/05fOO0bp",
+        tag: "livro",
         color: "warning",
       },
       {
-        id: "livro-mock-02",
-        label: "Livro Mock 02",
-        description: "Link placeholder — afiliado em breve",
-        url: "#",
-        color: "accent",
+        id: "cursor-referral",
+        label: "Cursor",
+        description:
+          "50% off no 1º mês pelo link · você ganha créditos, eu também",
+        url: "https://cursor.com/referral?code=TL4STMV9GPXE",
+        tag: "servico",
+        color: "secondary",
       },
     ],
   },
   {
-    id: "afiliados",
-    title: "Recomendações",
+    id: "apoio",
+    title: "Apoio",
     links: [
       {
-        id: "afiliado-mock-01",
-        label: "Recomendação Mock 01",
-        description: "Link de afiliado placeholder",
-        url: "#",
-        color: "secondary",
+        id: "quero-cafe",
+        label: "Me paga um café ☕",
+        description: "Pix — R$ 6,00 · copia e cola ou QR Code",
+        url: QUERO_CAFE_PATH,
+        color: "warning",
       },
       {
-        id: "afiliado-mock-02",
-        label: "Recomendação Mock 02",
-        description: "Outro link placeholder",
-        url: "#",
-        color: "white",
-      },
-      {
-        id: "afiliado-mock-03",
-        label: "Recomendação Mock 03",
-        description: "Substituir quando tiver links reais",
-        url: "#",
-        color: "success",
+        id: "aniversario",
+        label: "Aniversário chegando 🎂",
+        description: "Pix presente — valor livre",
+        url: ANIVERSARIO_PATH,
+        color: "accent",
       },
     ],
   },

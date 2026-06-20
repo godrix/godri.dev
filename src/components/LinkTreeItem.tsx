@@ -1,4 +1,5 @@
-import { LinkItem } from "@/data/links";
+import { LinkItem, linkTagColors, linkTagLabels } from "@/data/links";
+import { Badge } from "@/components/Badge";
 import { cn, nbColorClass } from "@/lib/utils";
 
 type LinkTreeItemProps = {
@@ -6,11 +7,15 @@ type LinkTreeItemProps = {
 };
 
 export function LinkTreeItem({ link }: LinkTreeItemProps) {
+  const isExternal =
+    link.external ?? (link.url.startsWith("http") || link.url.startsWith("//"));
+
   return (
     <a
       href={link.url}
-      target="_blank"
-      rel="noopener noreferrer"
+      {...(isExternal
+        ? { target: "_blank", rel: "noopener noreferrer" }
+        : {})}
       className={cn(
         "group block w-full border-2 border-black p-4 shadow-nb transition-all duration-150 ease-out",
         "hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-nb-lg",
@@ -18,6 +23,13 @@ export function LinkTreeItem({ link }: LinkTreeItemProps) {
         nbColorClass(link.color)
       )}
     >
+      {link.tag && (
+        <div className="mb-2">
+          <Badge color={linkTagColors[link.tag]} className="text-[10px]">
+            {linkTagLabels[link.tag]}
+          </Badge>
+        </div>
+      )}
       <span className="block font-display text-base font-bold leading-tight sm:text-lg">
         {link.label}
       </span>

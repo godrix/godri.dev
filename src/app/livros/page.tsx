@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
-  title: "Portfólio",
+  title: "Livros",
 };
 
 export default function LivrosRedirect() {
-  redirect("/portfolio");
+  redirect("/projetos");
 }

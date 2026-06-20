@@ -4,8 +4,9 @@ import { AnimatedLink, NavLink } from "@/components/AnimatedLink";
 
 const links = [
   { href: "/", label: "Início" },
-  { href: "/portfolio", label: "Portfólio", sectionId: "portfolio" },
-  { href: "/blog", label: "Blog", sectionId: "blog" },
+  { href: "/projetos", label: "Projetos", sectionId: "projetos" },
+  { href: "/artigos", label: "Artigos", sectionId: "artigos" },
+  { href: "/palestras", label: "Palestras", sectionId: "palestras" },
 ];
 
 export function Header() {

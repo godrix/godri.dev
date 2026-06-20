@@ -1,10 +1,31 @@
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
+import { PageLayout } from "@/components/PageLayout";
+import { SectionHeader } from "@/components/SectionHeader";
+import { PortfolioCard } from "@/components/PortfolioCard";
+import { getProjetos } from "@/data/portfolio";
 
 export const metadata: Metadata = {
-  title: "Portfólio",
+  title: "Projetos",
+  description: "Projetos open source e software que construo.",
 };
 
-export default function ProjetosRedirect() {
-  redirect("/portfolio");
+export default function ProjetosPage() {
+  const projetos = getProjetos();
+
+  return (
+    <PageLayout>
+      <div className="mx-auto max-w-[var(--nb-max-width)] px-6 py-16">
+        <SectionHeader
+          label="Projetos"
+          title="Coisas que construo"
+          description="Open source, ferramentas MCP, extensões e side projects que construo e mantenho."
+        />
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {projetos.map((item) => (
+            <PortfolioCard key={item.slug} item={item} />
+          ))}
+        </div>
+      </div>
+    </PageLayout>
+  );
 }
