@@ -3,11 +3,13 @@ import { PageLayout } from "@/components/PageLayout";
 import { SectionHeader } from "@/components/SectionHeader";
 import { PortfolioCard } from "@/components/PortfolioCard";
 import { getProjetos } from "@/data/portfolio";
+import { buildPageMetadata } from "@/lib/metadata";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = buildPageMetadata({
   title: "Projetos",
   description: "Projetos open source e software que construo.",
-};
+  path: "/projetos",
+});
 
 export default function ProjetosPage() {
   const projetos = getProjetos();

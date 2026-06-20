@@ -2,21 +2,15 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { PixCoffee } from "@/components/PixCoffee";
 import { QueroCafeRefBanner } from "@/components/QueroCafeRefBanner";
-import { QUERO_CAFE_GIF, QUERO_CAFE_URL } from "@/data/pix";
+import { QUERO_CAFE_GIF, QUERO_CAFE_PATH } from "@/data/pix";
+import { buildPageMetadata } from "@/lib/metadata";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = buildPageMetadata({
   title: "Me paga um café",
-  description: "Apoie com um Pix — copia e cola ou QR Code.",
-  robots: {
-    index: true,
-    follow: true,
-  },
-  openGraph: {
-    title: "godri — Me paga um café",
-    description: "Apoie com um Pix — R$ 6,00.",
-    url: QUERO_CAFE_URL,
-  },
-};
+  description: "Apoie com um Pix — copia e cola ou QR Code. R$ 6,00.",
+  path: QUERO_CAFE_PATH,
+  image: QUERO_CAFE_GIF,
+});
 
 export default function QueroCafePage() {
   return (

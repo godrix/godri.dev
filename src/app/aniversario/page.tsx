@@ -4,25 +4,19 @@ import { AniversarioBirthdayPopup } from "@/components/AniversarioBirthdayPopup"
 import { AniversarioPix } from "@/components/AniversarioPix";
 import {
   ANIVERSARIO_GIF,
+  ANIVERSARIO_PATH,
   ANIVERSARIO_REF,
-  ANIVERSARIO_URL,
   isAniversarioSeason,
 } from "@/data/aniversario";
 import { QUERO_CAFE_PATH } from "@/data/pix";
+import { buildPageMetadata } from "@/lib/metadata";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = buildPageMetadata({
   title: "Aniversário chegando",
   description: "Presente de aniversário via Pix — copia e cola ou QR Code.",
-  robots: {
-    index: true,
-    follow: true,
-  },
-  openGraph: {
-    title: "godri — Aniversário chegando",
-    description: "Manda um Pix de presente de aniversário.",
-    url: ANIVERSARIO_URL,
-  },
-};
+  path: ANIVERSARIO_PATH,
+  image: ANIVERSARIO_GIF,
+});
 
 export default function AniversarioPage() {
   if (!isAniversarioSeason()) {

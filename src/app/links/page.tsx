@@ -2,20 +2,13 @@ import type { Metadata } from "next";
 import { LinkTreeItem } from "@/components/LinkTreeItem";
 import { SocialIconGrid } from "@/components/SocialIconGrid";
 import { profile, socialLinks, linkGroups } from "@/data/links";
+import { buildPageMetadata } from "@/lib/metadata";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = buildPageMetadata({
   title: "Links",
   description: "Links, redes sociais e recomendações do godri.",
-  robots: {
-    index: true,
-    follow: true,
-  },
-  openGraph: {
-    title: "godri — Links",
-    description: "Todos os links em um só lugar.",
-    url: "https://godri.dev/links",
-  },
-};
+  path: "/links",
+});
 
 export default function LinksPage() {
   return (
