@@ -1,9 +1,9 @@
 "use client";
 
-import { AnimatedLink, NavLink } from "@/components/AnimatedLink";
+import { NavLink } from "@/components/AnimatedLink";
+import { SiteLogoLink } from "@/components/SiteLogoLink";
 
 const links = [
-  { href: "/", label: "Início" },
   { href: "/projetos", label: "Projetos", sectionId: "projetos" },
   { href: "/artigos", label: "Artigos", sectionId: "artigos" },
   { href: "/palestras", label: "Palestras", sectionId: "palestras" },
@@ -13,12 +13,7 @@ export function Header() {
   return (
     <header className="border-b-[3px] border-black bg-white">
       <div className="mx-auto flex max-w-[var(--nb-max-width)] items-center justify-between px-6 py-4">
-        <AnimatedLink
-          href="/"
-          className="font-display text-2xl font-black tracking-tight transition-colors hover:bg-nb-primary hover:px-2"
-        >
-          godri<span className="text-nb-accent">.</span>dev
-        </AnimatedLink>
+        <SiteLogoLink />
 
         <nav className="flex gap-1 sm:gap-2">
           {links.map((link) => (

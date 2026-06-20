@@ -24,11 +24,16 @@
   --radius-nb: 0px;
 }
 
+html {
+  overflow-x: clip;
+}
+
 body {
   background: var(--nb-bg);
   color: var(--nb-text-primary);
   font-family: var(--font-body), sans-serif;
   font-weight: 500;
+  overflow-x: clip;
 }
 
 h1, h2, h3, h4 {

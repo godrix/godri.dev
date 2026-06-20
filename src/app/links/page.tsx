@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { LinkTreeItem } from "@/components/LinkTreeItem";
 import { SocialIconGrid } from "@/components/SocialIconGrid";
+import { StandalonePageLogo } from "@/components/StandalonePageLogo";
 import { profile, socialLinks, linkGroups } from "@/data/links";
 import { buildPageMetadata } from "@/lib/metadata";
 
@@ -12,7 +13,8 @@ export const metadata: Metadata = buildPageMetadata({
 
 export default function LinksPage() {
   return (
-    <div className="min-h-screen bg-nb-bg">
+    <div className="relative min-h-screen bg-nb-bg">
+      <StandalonePageLogo />
       <div className="mx-auto max-w-md px-6 py-12 sm:py-16">
         {/* Profile */}
         <header className="mb-10 text-center animate-slide-up">

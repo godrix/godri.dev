@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { PixCoffee } from "@/components/PixCoffee";
 import { QueroCafeRefBanner } from "@/components/QueroCafeRefBanner";
+import { StandalonePageLogo } from "@/components/StandalonePageLogo";
 import { QUERO_CAFE_GIF, QUERO_CAFE_PATH } from "@/data/pix";
 import { buildPageMetadata } from "@/lib/metadata";
 
@@ -14,7 +15,8 @@ export const metadata: Metadata = buildPageMetadata({
 
 export default function QueroCafePage() {
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-nb-bg px-6 py-12 sm:py-16">
+    <div className="relative flex min-h-screen flex-col items-center justify-center bg-nb-bg px-6 py-12 sm:py-16">
+      <StandalonePageLogo />
       <header className="mb-8 max-w-md text-center animate-slide-up">
         <div className="mx-auto mb-6 w-full max-w-xs border-[3px] border-black bg-nb-warning shadow-nb-lg">
           <img

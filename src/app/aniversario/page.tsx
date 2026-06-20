@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { AniversarioBirthdayPopup } from "@/components/AniversarioBirthdayPopup";
 import { AniversarioPix } from "@/components/AniversarioPix";
+import { StandalonePageLogo } from "@/components/StandalonePageLogo";
 import {
   ANIVERSARIO_GIF,
   ANIVERSARIO_PATH,
@@ -27,7 +28,8 @@ export default function AniversarioPage() {
     <>
       <AniversarioBirthdayPopup storageKey="aniversario-page-popup" />
 
-      <div className="flex min-h-screen flex-col items-center justify-center bg-nb-bg px-6 py-12 sm:py-16">
+      <div className="relative flex min-h-screen flex-col items-center justify-center bg-nb-bg px-6 py-12 sm:py-16">
+        <StandalonePageLogo />
         <header className="mb-8 max-w-md text-center animate-slide-up">
           <div className="mx-auto mb-6 w-full max-w-xs border-[3px] border-black bg-nb-accent shadow-nb-lg">
             <img
