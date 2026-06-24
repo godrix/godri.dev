@@ -75,7 +75,7 @@ export async function getShortLinkByUrl(url: string): Promise<ShortLink | null> 
   `;
 
   const row = rows[0];
-  return row ? toShortLink(row) : null;
+  return row ? toShortLink(row as Record<string, unknown>) : null;
 }
 
 export function normalizeSlug(value: string): string {
@@ -139,7 +139,7 @@ export async function createShortLink(
       const row = rows[0];
       if (!row) throw new Error("Falha ao atualizar link encurtado");
 
-      return toShortLink(row);
+      return toShortLink(row as Record<string, unknown>);
     }
 
     const rows = await sql`
@@ -151,7 +151,7 @@ export async function createShortLink(
     const row = rows[0];
     if (!row) throw new Error("Falha ao criar link encurtado");
 
-    return toShortLink(row);
+    return toShortLink(row as Record<string, unknown>);
   }
 
   const existing = await getShortLinkByUrl(normalizedUrl);
@@ -170,7 +170,7 @@ export async function createShortLink(
       const row = rows[0];
       if (!row) throw new Error("Falha ao criar link encurtado");
 
-      return toShortLink(row);
+      return toShortLink(row as Record<string, unknown>);
     } catch (error) {
       const pgCode =
         error instanceof Error && "code" in error
@@ -202,5 +202,5 @@ export async function getShortLink(hash: string): Promise<ShortLink | null> {
   `;
 
   const row = rows[0];
-  return row ? toShortLink(row) : null;
+  return row ? toShortLink(row as Record<string, unknown>) : null;
 }

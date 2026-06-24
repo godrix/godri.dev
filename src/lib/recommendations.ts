@@ -72,7 +72,7 @@ export function validateRecommendationInput(
 
 async function ensureUniqueSlug(base: string, excludeId?: number): Promise<string> {
   const sql = getSql();
-  let candidate = base || "link";
+  const candidate = base || "link";
   let suffix = 0;
 
   while (suffix < 100) {
