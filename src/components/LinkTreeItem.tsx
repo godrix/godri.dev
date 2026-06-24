@@ -34,7 +34,7 @@ export function LinkTreeItem({ link }: LinkTreeItemProps) {
         {link.label}
       </span>
       {link.description && (
-        <span className="mt-1 block text-sm font-medium opacity-80 group-hover:opacity-100">
+        <span className="mt-1 line-clamp-2 block text-sm font-medium opacity-80 group-hover:opacity-100">
           {link.description}
         </span>
       )}
