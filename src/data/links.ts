@@ -16,7 +16,16 @@ export type LinkTag =
   | "produto"
   | "servico"
   | "ferramenta"
-  | "apoio";
+  | "apoio"
+  | "perifericos"
+  | "eletronicos"
+  | "estilo"
+  | "roupa"
+  | "cupom"
+  | "software"
+  | "curso"
+  | "casa"
+  | "saude";
 
 export const linkTagLabels: Record<LinkTag, string> = {
   livro: "Livro",
@@ -24,6 +33,15 @@ export const linkTagLabels: Record<LinkTag, string> = {
   servico: "Serviço",
   ferramenta: "Ferramenta",
   apoio: "Apoio",
+  perifericos: "Periféricos",
+  eletronicos: "Eletrônicos",
+  estilo: "Estilo",
+  roupa: "Roupa",
+  cupom: "Cupom de desconto",
+  software: "Software",
+  curso: "Curso",
+  casa: "Casa",
+  saude: "Saúde",
 };
 
 export const linkTagColors: Record<
@@ -35,6 +53,15 @@ export const linkTagColors: Record<
   servico: "secondary",
   ferramenta: "primary",
   apoio: "success",
+  perifericos: "secondary",
+  eletronicos: "accent",
+  estilo: "white",
+  roupa: "warning",
+  cupom: "success",
+  software: "primary",
+  curso: "secondary",
+  casa: "white",
+  saude: "success",
 };
 
 export type LinkItem = {

@@ -1,4 +1,4 @@
-import type { LinkItem, LinkTag } from "@/data/links";
+import { linkTagLabels, type LinkItem, type LinkTag } from "@/data/links";
 import { getSql } from "@/lib/db";
 
 const LINK_COLORS = new Set([
@@ -10,13 +10,7 @@ const LINK_COLORS = new Set([
   "white",
 ]);
 
-const LINK_TAGS = new Set([
-  "livro",
-  "produto",
-  "servico",
-  "ferramenta",
-  "apoio",
-]);
+const LINK_TAGS = new Set<string>(Object.keys(linkTagLabels));
 
 export type RecommendationInput = {
   label: string;
