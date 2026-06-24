@@ -56,15 +56,11 @@ export function normalizeUrl(value: string): string {
   return parsed.toString();
 }
 
-function toShortLink(row: {
-  hash: unknown;
-  url: unknown;
-  created_at: unknown;
-}): ShortLink {
+function toShortLink(row: Record<string, unknown>): ShortLink {
   return {
-    hash: row.hash as string,
-    url: row.url as string,
-    createdAt: new Date(row.created_at as string),
+    hash: String(row.hash),
+    url: String(row.url),
+    createdAt: new Date(String(row.created_at)),
   };
 }
 

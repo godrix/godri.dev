@@ -15,7 +15,7 @@ type PainelPageProps = {
 export default async function LinksPainelPage({ searchParams }: PainelPageProps) {
   const { token } = await searchParams;
 
-  if (!isValidLinksAdminToken(token)) {
+  if (!token || !isValidLinksAdminToken(token)) {
     return (
       <div className="relative flex min-h-screen flex-col items-center justify-center bg-nb-bg px-6 py-12">
         <StandalonePageLogo />
