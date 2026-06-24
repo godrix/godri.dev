@@ -43,9 +43,21 @@ export async function POST(request: Request) {
       shortUrl: `${SITE_URL}/zip/${link.hash}`,
       originalUrl: link.url,
     });
-  } catch {
+  } catch (error) {
+    console.error("[zip] Falha ao encurtar URL:", error);
+
+    const isDev = process.env.NODE_ENV === "development";
+    const detail =
+      error instanceof Error ? error.message : "Erro desconhecido";
+
     return NextResponse.json(
-      { ok: false, error: "Erro ao encurtar a URL. Tente novamente." },
+      {
+        ok: false,
+        error: isDev
+          ? detail
+          : "Erro ao encurtar a URL. Tente novamente.",
+        ...(isDev ? { hint: "Abra GET /api/zip/health para diagnosticar." } : {}),
+      },
       { status: 500 },
     );
   }

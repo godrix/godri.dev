@@ -6,3 +6,5 @@ CREATE TABLE IF NOT EXISTS short_links (
 );
 
 CREATE INDEX IF NOT EXISTS short_links_hash_idx ON short_links (hash);
+
+CREATE UNIQUE INDEX IF NOT EXISTS short_links_url_idx ON short_links (url);
