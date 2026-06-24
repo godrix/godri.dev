@@ -90,31 +90,28 @@ export const socialLinks: SocialLink[] = [
   },
 ];
 
-export const linkGroups: LinkGroup[] = [
+export const defaultRecommendations: LinkItem[] = [
   {
-    id: "recomendacoes",
-    title: "Recomendações",
-    links: [
-      {
-        id: "engenharia-de-ia",
-        label: "Engenharia de IA",
-        description:
-          "Construindo aplicações com modelos de fundação — Chip Huyen · Amazon",
-        url: "https://a.co/d/05fOO0bp",
-        tag: "livro",
-        color: "warning",
-      },
-      {
-        id: "cursor-referral",
-        label: "Cursor",
-        description:
-          "50% off no 1º mês pelo link · você ganha créditos, eu também",
-        url: "https://cursor.com/referral?code=TL4STMV9GPXE",
-        tag: "servico",
-        color: "secondary",
-      },
-    ],
+    id: "engenharia-de-ia",
+    label: "Engenharia de IA",
+    description:
+      "Construindo aplicações com modelos de fundação — Chip Huyen · Amazon",
+    url: "https://a.co/d/05fOO0bp",
+    tag: "livro",
+    color: "warning",
   },
+  {
+    id: "cursor-referral",
+    label: "Cursor",
+    description:
+      "50% off no 1º mês pelo link · você ganha créditos, eu também",
+    url: "https://cursor.com/referral?code=TL4STMV9GPXE",
+    tag: "servico",
+    color: "secondary",
+  },
+];
+
+export const linkGroups: LinkGroup[] = [
   {
     id: "apoio",
     title: "Apoio",

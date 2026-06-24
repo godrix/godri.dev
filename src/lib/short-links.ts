@@ -6,6 +6,23 @@ const ALPHABET =
 
 const HASH_LENGTH = 7;
 const MAX_COLLISION_RETRIES = 5;
+const CUSTOM_SLUG_MIN_LENGTH = 2;
+const CUSTOM_SLUG_MAX_LENGTH = 48;
+const RESERVED_SLUGS = new Set(["health"]);
+
+export class CustomSlugTakenError extends Error {
+  constructor() {
+    super("Este caminho já está em uso por outro link.");
+    this.name = "CustomSlugTakenError";
+  }
+}
+
+export class InvalidCustomSlugError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "InvalidCustomSlugError";
+  }
+}
 
 export type ShortLink = {
   hash: string;
@@ -65,9 +82,81 @@ export async function getShortLinkByUrl(url: string): Promise<ShortLink | null> 
   return row ? toShortLink(row) : null;
 }
 
-export async function createShortLink(url: string): Promise<ShortLink> {
+export function normalizeSlug(value: string): string {
+  return value.trim().toLowerCase();
+}
+
+export function isValidCustomSlug(value: string): boolean {
+  const slug = normalizeSlug(value);
+
+  if (
+    slug.length < CUSTOM_SLUG_MIN_LENGTH ||
+    slug.length > CUSTOM_SLUG_MAX_LENGTH
+  ) {
+    return false;
+  }
+
+  if (RESERVED_SLUGS.has(slug)) {
+    return false;
+  }
+
+  return /^[a-z0-9][a-z0-9_-]*[a-z0-9]$/.test(slug);
+}
+
+export async function getShortLinkByHash(hash: string): Promise<ShortLink | null> {
+  return getShortLink(hash);
+}
+
+export async function createShortLink(
+  url: string,
+  customSlug?: string,
+): Promise<ShortLink> {
   const sql = getSql();
   const normalizedUrl = normalizeUrl(url);
+
+  if (customSlug) {
+    const slug = normalizeSlug(customSlug);
+
+    if (!isValidCustomSlug(slug)) {
+      throw new InvalidCustomSlugError(
+        "Caminho inválido. Use 2–48 caracteres: letras minúsculas, números, - ou _.",
+      );
+    }
+
+    const existingBySlug = await getShortLink(slug);
+    if (existingBySlug) {
+      if (existingBySlug.url === normalizedUrl) {
+        return existingBySlug;
+      }
+      throw new CustomSlugTakenError();
+    }
+
+    const existingByUrl = await getShortLinkByUrl(normalizedUrl);
+    if (existingByUrl) {
+      const rows = await sql`
+        UPDATE short_links
+        SET hash = ${slug}
+        WHERE url = ${normalizedUrl}
+        RETURNING hash, url, created_at
+      `;
+
+      const row = rows[0];
+      if (!row) throw new Error("Falha ao atualizar link encurtado");
+
+      return toShortLink(row);
+    }
+
+    const rows = await sql`
+      INSERT INTO short_links (hash, url)
+      VALUES (${slug}, ${normalizedUrl})
+      RETURNING hash, url, created_at
+    `;
+
+    const row = rows[0];
+    if (!row) throw new Error("Falha ao criar link encurtado");
+
+    return toShortLink(row);
+  }
 
   const existing = await getShortLinkByUrl(normalizedUrl);
   if (existing) return existing;

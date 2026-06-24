@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { SITE_URL } from "@/lib/metadata";
-import { createShortLink, isValidUrl } from "@/lib/short-links";
+import {
+  createShortLink,
+  CustomSlugTakenError,
+  InvalidCustomSlugError,
+  isValidUrl,
+} from "@/lib/short-links";
 
 export async function POST(request: Request) {
   let body: unknown;
@@ -22,6 +27,14 @@ export async function POST(request: Request) {
       ? body.url.trim()
       : "";
 
+  const slug =
+    typeof body === "object" &&
+    body !== null &&
+    "slug" in body &&
+    typeof body.slug === "string"
+      ? body.slug.trim()
+      : undefined;
+
   if (!url) {
     return NextResponse.json(
       { ok: false, error: "Informe uma URL." },
@@ -37,7 +50,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const link = await createShortLink(url);
+    const link = await createShortLink(url, slug || undefined);
     return NextResponse.json({
       ok: true,
       shortUrl: `${SITE_URL}/zip/${link.hash}`,
@@ -45,6 +58,14 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     console.error("[zip] Falha ao encurtar URL:", error);
+
+    if (error instanceof CustomSlugTakenError) {
+      return NextResponse.json({ ok: false, error: error.message }, { status: 409 });
+    }
+
+    if (error instanceof InvalidCustomSlugError) {
+      return NextResponse.json({ ok: false, error: error.message }, { status: 400 });
+    }
 
     const isDev = process.env.NODE_ENV === "development";
     const detail =

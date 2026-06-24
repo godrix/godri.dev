@@ -40,12 +40,16 @@ export function ZipForm() {
 
     const formData = new FormData(event.currentTarget);
     const url = String(formData.get("url") ?? "").trim();
+    const slug = String(formData.get("slug") ?? "").trim();
 
     try {
       const response = await fetch("/api/zip", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url }),
+        body: JSON.stringify({
+          url,
+          ...(slug ? { slug } : {}),
+        }),
       });
 
       const data = (await response.json()) as ZipResult;
@@ -79,6 +83,29 @@ export function ZipForm() {
             className={inputClass}
             disabled={pending}
           />
+        </label>
+
+        <label className="block">
+          <span className="mb-2 block font-mono text-xs font-bold uppercase tracking-widest">
+            Caminho personalizado
+            <span className="ml-2 font-normal normal-case tracking-normal text-nb-muted">
+              (opcional)
+            </span>
+          </span>
+          <div className="flex border-[3px] border-black bg-white shadow-nb-sm focus-within:shadow-nb">
+            <span className="border-r-[3px] border-black bg-nb-bg-secondary px-3 py-3 font-mono text-xs font-bold">
+              godri.dev/zip/
+            </span>
+            <input
+              type="text"
+              name="slug"
+              placeholder="novidades"
+              pattern="[a-zA-Z0-9][a-zA-Z0-9_-]*"
+              title="Letras, números, hífen ou underscore"
+              className="min-w-0 flex-1 bg-transparent px-3 py-3 font-mono text-sm outline-none"
+              disabled={pending}
+            />
+          </div>
         </label>
 
         <button

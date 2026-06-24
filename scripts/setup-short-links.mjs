@@ -12,10 +12,15 @@ const sql = neon(url);
 await sql`
   CREATE TABLE IF NOT EXISTS short_links (
     id SERIAL PRIMARY KEY,
-    hash VARCHAR(12) UNIQUE NOT NULL,
+    hash VARCHAR(64) UNIQUE NOT NULL,
     url TEXT NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
   )
+`;
+
+await sql`
+  ALTER TABLE short_links
+  ALTER COLUMN hash TYPE VARCHAR(64)
 `;
 
 await sql`
@@ -28,9 +33,7 @@ try {
   `;
 } catch (error) {
   const code =
-    error instanceof Error && "code" in error
-      ? (error as { code: string }).code
-      : null;
+    error instanceof Error && "code" in error ? error.code : null;
 
   if (code === "23505") {
     console.warn(

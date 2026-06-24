@@ -21,8 +21,9 @@ export default function ZipPage() {
           Zip 🔗
         </h1>
         <p className="mt-3 text-base font-medium">
-          Cole uma URL longa e receba um link curto em{" "}
-          <span className="font-mono font-bold">godri.dev/zip/…</span>
+          Cole uma URL longa e receba um link curto — ou escolha um caminho
+          personalizado como{" "}
+          <span className="font-mono font-bold">godri.dev/zip/novidades</span>
         </p>
       </header>
 
