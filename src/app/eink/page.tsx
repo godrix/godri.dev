@@ -155,9 +155,6 @@ export default async function EinkPage({ searchParams }: PageProps) {
                         <tbody>
                           {news.map((item, i) => (
                             <tr key={`${item.title}-${i}`}>
-                              <td className="eink-idx">
-                                {String(i + 1).padStart(2, "0")}
-                              </td>
                               <td>
                                 <p className="eink-title">{item.title}</p>
                               </td>
