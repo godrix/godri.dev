@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#0b1a33">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Cataratas no Barril | godri.dev</title>
+  <meta name="description" content="Desça a cachoeira dentro de um barril. Jogo de pixel art para celular.">
+  <meta property="og:title" content="Cataratas no Barril">
+  <meta property="og:description" content="Desça a cachoeira dentro de um barril. Jogo de pixel art para celular.">
+  <meta property="og:url" content="https://godri.dev/cataratas">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="godri.dev">
+  <link rel="canonical" href="https://godri.dev/cataratas">
+  <link rel="manifest" href="/cataratas/manifest.webmanifest">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/cataratas/style.css">
+</head>
+<body>
+  <canvas id="game" aria-label="Jogo Cataratas"></canvas>
+
+  <div id="hud" hidden>
+    <span id="score">0 m</span>
+    <span id="best">REC 0 m</span>
+  </div>
+  <div id="pop" aria-live="polite"></div>
+  <div id="hint" hidden></div>
+  <div id="aee" hidden aria-hidden="true">UOOEEE</div>
+
+  <section id="title" class="screen">
+    <h1><span class="t1">CATARATAS</span><span class="t2">NO BARRIL</span></h1>
+    <p class="sub">DESÇA A CACHOEIRA<br>DENTRO DE UM BARRIL</p>
+    <p class="how" id="howTo">TOQUE À ESQUERDA OU À<br>DIREITA PARA DESVIAR</p>
+    <p class="rec">RECORDE: <span id="titleBest">0</span> m</p>
+    <button id="playBtn" class="primary play" type="button" aria-label="Jogar">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5 3h2v1h1v1h1v1h1v1h1v2h-1v1h-1v1h-1v1h-1v1H5z"/></svg>
+      <span>JOGAR</span>
+    </button>
+    <div class="toggles">
+      <button id="soundBtn" class="icon" type="button" aria-label="Som" aria-pressed="true">
+        <svg viewBox="0 0 16 16" aria-hidden="true">
+          <path d="M2 6h3v4H2zM5 6h1V5h1V4h1V3h1v10H8v-1H7v-1H6v-1H5z"/>
+          <path class="waves" d="M11 6h1v4h-1zM13 4h1v1h1v6h-1v1h-1v-1h1V5h-1z"/>
+          <g class="slash"><path class="slash-bg" d="M2 2L14 14"/><path class="slash-fg" d="M2 2L14 14"/></g>
+        </svg>
+        <span>SOM</span>
+      </button>
+      <button id="shakeBtn" class="icon" type="button" aria-label="Tremor" aria-pressed="true">
+        <svg viewBox="0 0 16 16" aria-hidden="true">
+          <path d="M5 2h6v12H5zM6 3v9h4V3zM7 13h2v-1H7z" fill-rule="evenodd"/>
+          <path class="waves" d="M3 4h1v2H3zM2 7h1v2H2zM3 10h1v2H3zM12 4h1v2h-1zM13 7h1v2h-1zM12 10h1v2h-1z"/>
+          <g class="slash"><path class="slash-bg" d="M2 2L14 14"/><path class="slash-fg" d="M2 2L14 14"/></g>
+        </svg>
+        <span>TREMOR</span>
+      </button>
+      <button id="musicBtn" class="icon" type="button" aria-label="Música" aria-pressed="true">
+        <svg viewBox="0 0 16 16" aria-hidden="true">
+          <path d="M6 2h8v3H8v6H6zM12 5h2v5h-2zM4 10h3v1h1v2H7v1H4v-1H3v-2h1zM10 9h3v1h1v2h-1v1h-3v-1H9v-2h1z"/>
+          <g class="slash"><path class="slash-bg" d="M2 2L14 14"/><path class="slash-fg" d="M2 2L14 14"/></g>
+        </svg>
+        <span>MÚSICA</span>
+      </button>
+      <!-- Only shown on HTTPS (motion sensors need a secure page); see tiltAvailable in js/game.js. -->
+      <button id="tiltBtn" class="icon" type="button" aria-label="Sensor" aria-pressed="false" hidden>
+        <svg viewBox="0 0 16 16" aria-hidden="true">
+          <path d="M6 3h4v10H6zM7 4v7h2V4z" fill-rule="evenodd"/>
+          <path class="waves" d="M3 6h1v4H3zM2 7h1v2H2zM12 6h1v4h-1zM13 7h1v2h-1z"/>
+          <g class="slash"><path class="slash-bg" d="M2 2L14 14"/><path class="slash-fg" d="M2 2L14 14"/></g>
+        </svg>
+        <span>SENSOR</span>
+      </button>
+    </div>
+    <button id="sensBtn" class="sens" type="button" hidden>INCLINAÇÃO: MÉDIA</button>
+  </section>
+
+  <section id="over" class="screen" hidden>
+    <h2>O BARRIL<br>QUEBROU!</h2>
+    <p class="big" id="overScore">0 m</p>
+    <p class="newrec blink" id="newRec" hidden>NOVO RECORDE!</p>
+    <p class="rec">RECORDE: <span id="overBest">0</span> m</p>
+    <button id="againBtn" class="primary play" type="button">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5 3h2v1h1v1h1v1h1v1h1v2h-1v1h-1v1h-1v1h-1v1H5z"/></svg>
+      <span>DE NOVO</span>
+    </button>
+    <button id="menuBtn" type="button">MENU</button>
+  </section>
+
+  <section id="pause" class="screen" hidden>
+    <h2>PAUSADO</h2>
+    <p class="cta blink">TOQUE PARA CONTINUAR</p>
+  </section>
+
+  <section id="rotate" class="screen solid" hidden>
+    <div class="phone" aria-hidden="true"></div>
+    <h2>GIRE O CELULAR<br>NA VERTICAL</h2>
+  </section>
+
+  <section id="desktop" class="screen solid" hidden>
+    <h1><span class="t1">CATARATAS</span><span class="t2">NO BARRIL</span></h1>
+    <p class="sub">ESTE JOGO É FEITO<br>PARA CELULAR</p>
+    <p class="how">ABRA ESTE ENDEREÇO<br>NO SEU CELULAR:</p>
+    <p class="url" id="desktopUrl"></p>
+  </section>
+
+  <script src="/cataratas/js/game.js" defer></script>
+</body>
+</html>

@@ -34,6 +34,19 @@ export const kindColors: Record<
 
 export const portfolio: PortfolioItem[] = [
   {
+    slug: "cataratas",
+    kind: "projeto",
+    title: "Cataratas no Barril",
+    subtitle: "Jogo de pixel art para celular",
+    description:
+      "Desça a cachoeira dentro de um barril: desvie das pedras com toque ou sensor de inclinação. Recorde salvo, música sintética e um easter egg a cada 1000 m.",
+    tags: ["JavaScript", "Canvas", "Pixel art", "Mobile"],
+    url: "/cataratas",
+    status: "publicado",
+    color: "primary",
+    year: 2026,
+  },
+  {
     slug: "cursor-toys",
     kind: "projeto",
     title: "CursorToys",
