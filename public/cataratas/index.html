@@ -31,11 +31,12 @@
   <div id="pop" aria-live="polite"></div>
   <div id="hint" hidden></div>
   <div id="aee" hidden aria-hidden="true">UOOEEE</div>
+  <div id="toast" aria-live="polite" hidden></div>
 
   <section id="title" class="screen">
     <h1><span class="t1">CATARATAS</span><span class="t2">NO BARRIL</span></h1>
     <p class="sub">DESÇA A CACHOEIRA<br>DENTRO DE UM BARRIL</p>
-    <p class="how" id="howTo">TOQUE À ESQUERDA OU À<br>DIREITA PARA DESVIAR</p>
+    <p class="how" id="howTo">INCLINE O CELULAR PARA<br>DESVIAR DAS PEDRAS</p>
     <p class="rec">RECORDE: <span id="titleBest">0</span> m</p>
     <button id="playBtn" class="primary play" type="button" aria-label="Jogar">
       <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5 3h2v1h1v1h1v1h1v1h1v2h-1v1h-1v1h-1v1h-1v1H5z"/></svg>
@@ -65,17 +66,45 @@
         </svg>
         <span>MÚSICA</span>
       </button>
-      <!-- Only shown on HTTPS (motion sensors need a secure page); see tiltAvailable in js/game.js. -->
-      <button id="tiltBtn" class="icon" type="button" aria-label="Sensor" aria-pressed="false" hidden>
-        <svg viewBox="0 0 16 16" aria-hidden="true">
-          <path d="M6 3h4v10H6zM7 4v7h2V4z" fill-rule="evenodd"/>
-          <path class="waves" d="M3 6h1v4H3zM2 7h1v2H2zM12 6h1v4h-1zM13 7h1v2h-1z"/>
-          <g class="slash"><path class="slash-bg" d="M2 2L14 14"/><path class="slash-fg" d="M2 2L14 14"/></g>
-        </svg>
-        <span>SENSOR</span>
-      </button>
     </div>
     <button id="sensBtn" class="sens" type="button" hidden>INCLINAÇÃO: MÉDIA</button>
+    <div class="menu-row">
+      <button id="shopBtn" class="trophy" type="button" aria-label="Loja">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5 1h6v1h2v2h1v2h1v4h-1v2h-1v2h-2v1H5v-1H3v-2H2v-2H1V6h1V4h1V2h2zM7 4v1H6v2h1v1h2v1H6v2h1v1h2v-1h1V9H9V8H7V7h3V5H9V4z" fill-rule="evenodd"/></svg>
+        <span>LOJA</span>
+      </button>
+      <button id="achBtn" class="trophy" type="button" aria-label="Conquistas">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 2h10v2h2v3h-1v1h-2v1h-1v1H9v2h2v1h1v2H4v-2h1v-1h2v-2H5V9H4V8H2V7H1V4h2zM2 5v1h1V5zM13 5v1h1V5z"/></svg>
+        <span>TROFÉUS<br><span id="achCount">0/0</span></span>
+      </button>
+    </div>
+  </section>
+
+  <section id="ach" class="screen solid" hidden>
+    <h2>CONQUISTAS</h2>
+    <p class="rec" id="achSummary">0/0 LIBERADAS</p>
+    <ul id="achList" class="ach-list"></ul>
+    <button id="achBack" type="button">VOLTAR</button>
+  </section>
+
+  <section id="shop" class="screen solid" hidden>
+    <h2>LOJA</h2>
+    <p class="rec">SALDO: <span id="wallet">0</span> m</p>
+    <div class="shop-top">
+      <canvas id="shopPreview" width="28" height="36" aria-hidden="true"></canvas>
+      <div class="shop-info">
+        <p class="shop-name" id="shopName"></p>
+        <p class="shop-desc" id="shopDesc"></p>
+        <button id="shopAction" type="button">USAR</button>
+      </div>
+    </div>
+    <div class="tabs" role="tablist">
+      <button id="tabBarrel" class="tab on" type="button" role="tab" aria-selected="true">BARRIS</button>
+      <button id="tabRider" class="tab" type="button" role="tab" aria-selected="false">PILOTOS</button>
+    </div>
+    <ul id="shopList" class="shop-grid"></ul>
+    <p class="shop-tip">CADA METRO DESCIDO VIRA SALDO</p>
+    <button id="shopBack" type="button">VOLTAR</button>
   </section>
 
   <section id="over" class="screen" hidden>
@@ -83,11 +112,23 @@
     <p class="big" id="overScore">0 m</p>
     <p class="newrec blink" id="newRec" hidden>NOVO RECORDE!</p>
     <p class="rec">RECORDE: <span id="overBest">0</span> m</p>
+    <p class="coins" id="overCoins"></p>
+    <p class="newach" id="overAch" hidden></p>
     <button id="againBtn" class="primary play" type="button">
       <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5 3h2v1h1v1h1v1h1v1h1v2h-1v1h-1v1h-1v1h-1v1H5z"/></svg>
       <span>DE NOVO</span>
     </button>
     <button id="menuBtn" type="button">MENU</button>
+    <div class="menu-row">
+      <button id="overShopBtn" class="trophy" type="button" aria-label="Loja">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5 1h6v1h2v2h1v2h1v4h-1v2h-1v2h-2v1H5v-1H3v-2H2v-2H1V6h1V4h1V2h2zM7 4v1H6v2h1v1h2v1H6v2h1v1h2v-1h1V9H9V8H7V7h3V5H9V4z" fill-rule="evenodd"/></svg>
+        <span>LOJA</span>
+      </button>
+      <button id="overAchBtn" class="trophy" type="button" aria-label="Conquistas">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 2h10v2h2v3h-1v1h-2v1h-1v1H9v2h2v1h1v2H4v-2h1v-1h2v-2H5V9H4V8H2V7H1V4h2zM2 5v1h1V5zM13 5v1h1V5z"/></svg>
+        <span>TROFÉUS</span>
+      </button>
+    </div>
   </section>
 
   <section id="pause" class="screen" hidden>

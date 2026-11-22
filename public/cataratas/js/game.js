@@ -41,10 +41,16 @@ function valueNoise(x, seed) {
 // localStorage can throw or be empty (private mode, blocked storage), so every access is guarded.
 
 const KEY = 'cataratas.save';
-const VERSION = 1;
+const VERSION = 2;
 
 function defaults(reducedMotion) {
-  return { v: VERSION, best: 0, sound: true, music: true, shake: !reducedMotion, sens: 1, tilt: false };
+  return {
+    v: VERSION, best: 0, sound: true, music: true, shake: !reducedMotion, sens: 1,
+    // achievements: unlocked ids -> true, plus the lifetime stats some of them count
+    ach: {}, runs: 0, totalM: 0, grazes: 0, badStreak: 0,
+    // skins: wallet = totalM - spent; owned keys are "b:<id>" / "r:<id>"
+    spent: 0, owned: {}, barrel: 'classic', rider: 'classic',
+  };
 }
 
 function migrate(obj, d) {
@@ -55,8 +61,19 @@ function migrate(obj, d) {
   if (typeof obj.sound === 'boolean') out.sound = obj.sound;
   if (typeof obj.shake === 'boolean') out.shake = obj.shake;
   if (typeof obj.music === 'boolean') out.music = obj.music;
-  if (typeof obj.tilt === 'boolean') out.tilt = obj.tilt;
   if (obj.sens === 0 || obj.sens === 1 || obj.sens === 2) out.sens = obj.sens;
+  // v1 had a "tilt" toggle; steering is sensor-only since v2, so it's dropped.
+  if (obj.ach && typeof obj.ach === 'object') {
+    for (const k of Object.keys(obj.ach)) if (obj.ach[k] === true) out.ach[k] = true;
+  }
+  if (obj.owned && typeof obj.owned === 'object') {
+    for (const k of Object.keys(obj.owned)) if (obj.owned[k] === true) out.owned[k] = true;
+  }
+  if (typeof obj.barrel === 'string') out.barrel = obj.barrel;
+  if (typeof obj.rider === 'string') out.rider = obj.rider;
+  for (const k of ['runs', 'totalM', 'grazes', 'badStreak', 'spent']) {
+    if (Number.isFinite(obj[k]) && obj[k] >= 0) out[k] = Math.floor(obj[k]);
+  }
   out.v = VERSION;
   return out;
 }
@@ -82,7 +99,8 @@ function writeSave(data) {
 
 // ===== input =====
 // Input layer (input-systems skill): gameplay reads one "steer" action in [-1, 1].
-// Sources: phone tilt (primary), touch halves (fallback), arrow keys (desktop test mode).
+// Sources: phone tilt (the only control on phones), arrow keys (?pc test mode) and
+// screen halves (?tap=true test mode only).
 
 const DEG = Math.PI / 180;
 const DEAD = 0.07; // radial deadzone on the normalized tilt
@@ -90,41 +108,37 @@ const CURVE = 1.35; // response curve: finer control near the centre
 // Lateral gravity fraction (sin of the roll angle) that counts as full steer, per sensitivity.
 const SENS_FULL = [0.5, 0.36, 0.25];
 const SENS_LABELS = ['BAIXA', 'MÉDIA', 'ALTA'];
-// Tilt steering is opt-in from the menu ("SENSOR"), and the option only appears when the page
-// is served over HTTPS, since browsers only deliver motion sensor events to secure pages.
+// Browsers only deliver motion sensor events to secure (HTTPS) pages.
 const tiltAvailable = window.isSecureContext === true && 'DeviceOrientationEvent' in window;
 
 class Input {
-  constructor(target) {
+  // tapTarget: element whose left/right halves steer when pressed (test mode); null = off.
+  constructor(tapTarget) {
     this.raw = 0; // lateral gravity component in device x, -1..1
     this.neutral = 0;
     this.hasSensor = false;
     this.calibratePending = false;
     this.filtered = 0;
     this.sens = 1;
-    this.tiltOn = false; // steer with the motion sensor (menu option)
-    this.pointers = new Map(); // pointerId -> -1 | 1, insertion order = press order
     this.keyL = false;
     this.keyR = false;
 
+    this.pointers = new Map(); // pointerId -> -1 | 1, insertion order = press order
+
     window.addEventListener('deviceorientation', (e) => this.onOrient(e));
-
-    const setPointer = (e) => {
-      this.pointers.delete(e.pointerId);
-      this.pointers.set(e.pointerId, e.clientX < window.innerWidth / 2 ? -1 : 1);
-    };
-    target.addEventListener('pointerdown', (e) => {
-      setPointer(e);
-      e.preventDefault();
-    });
-    target.addEventListener('pointermove', (e) => {
-      if (this.pointers.has(e.pointerId)) this.pointers.set(e.pointerId, e.clientX < window.innerWidth / 2 ? -1 : 1);
-    });
-    const up = (e) => this.pointers.delete(e.pointerId);
-    target.addEventListener('pointerup', up);
-    target.addEventListener('pointercancel', up);
-    target.addEventListener('pointerleave', up);
-
+    if (tapTarget) {
+      const side = (e) => (e.clientX < window.innerWidth / 2 ? -1 : 1);
+      tapTarget.addEventListener('pointerdown', (e) => {
+        this.pointers.delete(e.pointerId);
+        this.pointers.set(e.pointerId, side(e));
+        e.preventDefault();
+      });
+      tapTarget.addEventListener('pointermove', (e) => {
+        if (this.pointers.has(e.pointerId)) this.pointers.set(e.pointerId, side(e));
+      });
+      const up = (e) => this.pointers.delete(e.pointerId);
+      for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) tapTarget.addEventListener(ev, up);
+    }
     window.addEventListener('keydown', (e) => this.onKey(e, true));
     window.addEventListener('keyup', (e) => this.onKey(e, false));
   }
@@ -167,18 +181,13 @@ class Input {
     this.filtered = 0;
   }
 
-  touchDir() {
-    let dir = 0;
-    for (const d of this.pointers.values()) dir = d; // newest press wins
-    return dir;
-  }
-
   getSteer(dt) {
     let target = 0;
-    const td = this.touchDir();
-    if (td !== 0) target = td;
+    let tap = 0;
+    for (const d of this.pointers.values()) tap = d; // newest press wins
+    if (tap !== 0) target = tap;
     else if (this.keyL !== this.keyR) target = this.keyL ? -1 : 1;
-    else if (this.tiltOn && this.hasSensor) {
+    else if (this.hasSensor) {
       const v = (this.raw - this.neutral) / SENS_FULL[this.sens];
       const m = Math.min(Math.abs(v), 1);
       target = m <= DEAD ? 0 : Math.sign(v) * Math.pow((m - DEAD) / (1 - DEAD), CURVE);
@@ -699,11 +708,6 @@ const RIDER_ROWS = [
   '.oYYYYYYo.',
   'oYYyYYyYYo',
 ];
-function makeRider(look) {
-  const pal = { Y: '#ffd23f', y: '#d9a514', h: '#fff3a0', o: '#2a2108', s: '#f1c27d', E: '#1a1a1a' };
-  const eyes = [3 + look, 6 + look];
-  return paint(10, RIDER_ROWS.length, (i, j) => (j === 5 && eyes.includes(i) ? pal.E : pal[RIDER_ROWS[j][i]] || null));
-}
 // Pixel-art sprites generated once at load into offscreen canvases (no image files to fetch).
 
 function makeCanvas(w, h) {
@@ -737,28 +741,6 @@ function paint(w, h, colorAt) {
   }
   x.putImageData(img, 0, 0);
   return c;
-}
-
-// 20x24 side-view barrel: bulging staves, two iron hoops.
-function makeBarrel() {
-  const W = BARREL_W;
-  const H = BARREL_H;
-  return paint(W, H, (i, j) => {
-    const hw = 7 + Math.round(3 * Math.sin((Math.PI * (j + 0.5)) / H));
-    const x0 = W / 2 - hw;
-    const x1 = W / 2 + hw - 1;
-    if (i < x0 || i > x1) return null;
-    const rel = i - x0;
-    const span = x1 - x0;
-    if (i === x0 || i === x1 || j === 0 || j === H - 1) return '#2a1606';
-    if (j === 1) return '#5a3416';
-    if (j === 4 || j === 5 || j === 18 || j === 19) return rel <= span * 0.35 ? '#c3cad4' : rel >= span * 0.8 ? '#555b66' : '#868d99';
-    if (j === 6 || j === 20) return '#3e434c';
-    if (rel % 3 === 0) return '#6e4420';
-    if (rel === 2 || rel === 4 || rel === 5) return '#cf9a5c';
-    if (rel >= span - 2) return '#74471f';
-    return '#a66a31';
-  });
 }
 
 // Round-ish boulder with a lit top-left, dark outline and a little moss.
@@ -866,6 +848,308 @@ function makeFoamTile(w, h, seed) {
   return c;
 }
 
+// ===== skins =====
+// Cosmetic skins bought with the meters descended (wallet = save.totalM - save.spent).
+// Every barrel sprite is BARREL_W x BARREL_H so hitboxes never change; riders are 10 px wide
+// head sprites whose bottom row sits where the default rider's does (taller ones grow upwards).
+
+const bulge = (j, base, amt) => base + Math.round(amt * Math.sin((Math.PI * (j + 0.5)) / BARREL_H));
+const shade3 = (rel, span, light, mid, dark) => (rel <= span * 0.3 ? light : rel >= span * 0.75 ? dark : mid);
+
+// The classic wooden barrel, recolourable (the gold skin reuses it).
+function makeBarrel(p) {
+  const W = BARREL_W;
+  const H = BARREL_H;
+  return paint(W, H, (i, j) => {
+    const hw = bulge(j, 7, 3);
+    const x0 = W / 2 - hw;
+    const x1 = W / 2 + hw - 1;
+    if (i < x0 || i > x1) return null;
+    const rel = i - x0;
+    const span = x1 - x0;
+    if (p.spark && p.spark.some(([x, y]) => x === i && y === j)) return '#ffffff';
+    if (i === x0 || i === x1 || j === 0 || j === H - 1) return p.out;
+    if (j === 1) return p.rim;
+    if (j === 4 || j === 5 || j === 18 || j === 19) return rel <= span * 0.35 ? p.hoopL : rel >= span * 0.8 ? p.hoopD : p.hoop;
+    if (j === 6 || j === 20) return p.hoopS;
+    if (rel % 3 === 0) return p.groove;
+    if (rel === 2 || rel === 4 || rel === 5) return p.hi;
+    if (rel >= span - 2) return p.dark;
+    return p.base;
+  });
+}
+const WOOD = {
+  out: '#2a1606', rim: '#5a3416', hoopL: '#c3cad4', hoop: '#868d99', hoopD: '#555b66', hoopS: '#3e434c',
+  groove: '#6e4420', hi: '#cf9a5c', dark: '#74471f', base: '#a66a31',
+};
+const GOLD = {
+  out: '#4a3300', rim: '#8a6400', hoopL: '#ffffff', hoop: '#fff3a0', hoopD: '#c99a1a', hoopS: '#7a5a00',
+  groove: '#c99a1a', hi: '#fff3a0', dark: '#d9a514', base: '#ffd23f', spark: [[6, 9], [13, 14], [8, 22], [14, 3]],
+};
+
+// A drum shape (straighter than the barrel) with outline, light/mid/dark columns and a callback
+// for the details; the callback returns a colour or undefined to fall back to the body shade.
+function drum(base, amt, out, light, mid, dark, detail) {
+  const W = BARREL_W;
+  const H = BARREL_H;
+  return paint(W, H, (i, j) => {
+    const hw = typeof base === 'function' ? base(j) : bulge(j, base, amt);
+    const x0 = W / 2 - hw;
+    const x1 = W / 2 + hw - 1;
+    if (i < x0 || i > x1) return null;
+    const rel = i - x0;
+    const span = x1 - x0;
+    const d = detail(i, j, rel, span, x0, x1);
+    if (d !== undefined) return d;
+    if (i === x0 || i === x1 || j === 0 || j === H - 1) return out;
+    return shade3(rel, span, light, mid, dark);
+  });
+}
+
+function makeRadioactive() {
+  const drips = { 5: 4, 8: 2, 12: 5, 15: 3 };
+  return drum(8, 1, '#2a2306', '#ffe066', '#f2c40f', '#b88d06', (i, j, rel, span, x0, x1) => {
+    if (i === x0 || i === x1 || j === 0 || j === BARREL_H - 1) return undefined;
+    if (j === 1) return '#9dff5c';
+    if (drips[i] && j <= drips[i]) return j === drips[i] ? '#9dff5c' : '#62d93a';
+    if (j === 3 || j === 20) return '#1d1a10';
+    const dx = i + 0.5 - 10;
+    const dy = j + 0.5 - 12;
+    const dd = Math.hypot(dx, dy);
+    if (dd < 1.4) return '#1d1a10';
+    if (dd > 2.3 && dd < 5.3) {
+      const a = ((Math.atan2(dy, dx) * 180) / Math.PI + 450) % 120;
+      if (a < 60) return '#1d1a10';
+    }
+    return undefined;
+  });
+}
+
+function makeKeg() {
+  return drum(8, 1, '#3a4048', '#eef2f6', '#b5bec9', '#7d8794', (i, j, rel, span, x0, x1) => {
+    if (j <= 2) {
+      if (j === 0) return i > x0 && i < x1 && i % 3 !== 0 ? '#fffbe8' : null;
+      return (i + j) % 4 === 0 ? '#f3e6b3' : '#fffbe8';
+    }
+    if (i === x0 || i === x1 || j === BARREL_H - 1) return undefined;
+    if (j === 3 && (rel === 3 || rel === 4 || rel === span - 3 || rel === span - 4)) return '#3a4048';
+    if (j === 6 || j === 17) return '#5d6670';
+    if (j === 7 || j === 18) return '#dde3ea';
+    if (j >= 10 && j <= 13) {
+      if ((i * 7 + j * 3) % 11 === 0) return '#fff3c4';
+      return rel <= span * 0.3 ? '#f7c548' : rel >= span * 0.75 ? '#b8790b' : '#e8a317';
+    }
+    return undefined;
+  });
+}
+
+function makeFridge() {
+  const W = BARREL_W;
+  return paint(W, BARREL_H, (i, j) => {
+    if (j === 23) return i === 3 || i === 4 || i === 15 || i === 16 ? '#2b3340' : null;
+    if (i < 2 || i > 17) return null;
+    const corner = (i === 2 || i === 17) && (j === 0 || j === 22);
+    if (corner) return null;
+    if (i === 2 || i === 17 || j === 0 || j === 22) return '#2b3340';
+    if (j === 8) return '#8a96a6';
+    if (i === 14 && ((j >= 3 && j <= 6) || (j >= 11 && j <= 18))) return '#6b7686';
+    if (i === 5 && j === 12) return '#e84a4a';
+    if (i === 6 && j === 15) return '#3d8fe0';
+    if (i === 8 && j === 12) return '#ffd23f';
+    if (j === 1 || i === 3) return '#ffffff';
+    if (i >= 15) return '#c9d1db';
+    return '#eef2f6';
+  });
+}
+
+function makeMelon() {
+  return drum(7, 3, '#12361a', '#3fa34d', '#2e8b3a', '#1f6b2a', (i, j, rel, span, x0, x1) => {
+    if (i === x0 || i === x1 || j === 0 || j === BARREL_H - 1) return undefined;
+    if (j === 1) return '#c9eea0';
+    if (j === 2 || j === 3) return j === 3 && (rel === 3 || rel === 7 || rel === span - 4) ? '#1a1a1a' : '#ef4b5a';
+    if (j === 4) return '#c9eea0';
+    if ((i + Math.round(1.5 * Math.sin(j * 0.5))) % 4 === 0) return rel <= 1 ? '#8ad86a' : '#5fbf4a';
+    return undefined;
+  });
+}
+
+function makeOilDrum() {
+  return drum(8, 1, '#0e2140', '#4a86e8', '#2f6fd1', '#1f4f9e', (i, j, rel, span, x0, x1) => {
+    if (i === x0 || i === x1 || j === 0 || j === BARREL_H - 1) return undefined;
+    if (j === 1) return '#9aa6b5';
+    if (i === 6 && j >= 2 && j <= 5) return '#111111';
+    if (i === 7 && j === 2) return '#111111';
+    if (j === 7 || j === 16) return '#6ea4f2';
+    if (j === 8 || j === 17) return '#1d4a91';
+    if ((j === 11 || j === 12) && rel >= 3 && rel <= span - 3) return '#e8eef7';
+    return undefined;
+  });
+}
+
+function makeWaterTank() {
+  const hw = (j) => (j <= 2 ? 10 : 9 - Math.floor((j - 3) / 8));
+  return drum(hw, 0, '#0d2a52', '#6fb4f5', '#3d8fe0', '#2565b5', (i, j, rel, span, x0, x1) => {
+    if (i === x0 || i === x1 || j === 0 || j === BARREL_H - 1) return undefined;
+    if (j === 1) return '#5aa2ee';
+    if (j === 2) return '#2c6fc0';
+    if (j === 8 || j === 14 || j === 20) return '#2c6fc0';
+    if (j === 9 || j === 15 || j === 21) return rel <= span * 0.3 ? '#a9d6ff' : undefined;
+    return undefined;
+  });
+}
+
+function makePressureCooker() {
+  const W = BARREL_W;
+  return paint(W, BARREL_H, (i, j) => {
+    if (j >= 4 && j <= 5 && (i <= 2 || i >= 17)) return j === 4 ? '#3a3a3a' : '#1b1b1b';
+    const lid = j <= 1;
+    const x0 = lid ? 2 : 3;
+    const x1 = lid ? 17 : 16;
+    if (i < x0 || i > x1) return null;
+    if (lid && (i === 14 || i === 15)) return j === 0 ? '#555555' : '#222222';
+    if (i === x0 || i === x1 || j === 0 || j === BARREL_H - 1) return '#2b3038';
+    if (lid) return '#8b949f';
+    if (j === 2) return '#5d6670';
+    if (j === 12) return '#9aa3ae';
+    const rel = i - x0;
+    return shade3(rel, x1 - x0, '#f2f5f8', '#c3cad4', '#7d8794');
+  });
+}
+
+function makeTrashCan() {
+  const hw = (j) => (j <= 1 ? 10 : 9 - Math.floor(j / 12));
+  return drum(hw, 0, '#22262c', '#c3cad4', '#9aa3ae', '#6d7681', (i, j, rel, span, x0, x1) => {
+    if (j === 0 && (i === 16 || i === 17)) return '#ffd23f'; // banana peel on the rim
+    if (j === 1 && i === 17) return '#ffd23f';
+    if (j === 0 || j === BARREL_H - 1 || i === x0 || i === x1) return undefined;
+    if (j === 1) return '#e6ebf0';
+    if (j === 6 || j === 18) return '#7d8794';
+    if (rel % 3 === 0) return '#5d6670';
+    return undefined;
+  });
+}
+
+function makeDuck() {
+  return drum(8, 2, '#5a4300', '#ffe98a', '#ffd23f', '#d9a514', (i, j, rel, span, x0) => {
+    if ((i === 0 || i === 1 || i === x0) && (j === 5 || j === 6)) return '#ff8a1c'; // beak
+    if (j === 0 || j === BARREL_H - 1 || i === x0 || rel === span) return undefined;
+    if ((i === 4 || i === 5) && (j === 4 || j === 5)) return i === 4 && j === 4 ? '#ffffff' : '#1a1a1a'; // eye
+    const hx = i + 0.5 - 5.5;
+    const hy = j + 0.5 - 5.5;
+    const h2 = hx * hx + hy * hy;
+    if (h2 < 16 && h2 > 9) return hy > 0 ? '#a87a00' : '#ffe98a'; // head: lit top, shaded chin
+    if ((i === 2 || i === 3) && (j === 5 || j === 6)) return '#ff8a1c';
+    if (i === 2 && j === 7) return '#c25e00';
+    const wx = (i + 0.5 - 12) / 3.5;
+    const wy = (j + 0.5 - 14) / 3;
+    const w = wx * wx + wy * wy;
+    if (w < 1 && w > 0.55) return '#d9a514'; // wing
+    return undefined;
+  });
+}
+
+const BARREL_SKINS = [
+  { id: 'classic', name: 'BARRIL CLÁSSICO', desc: 'Madeira de lei com cheirinho de vinho velho.', price: 0, make: () => makeBarrel(WOOD) },
+  { id: 'radio', name: 'BARRIL RADIOATIVO', desc: 'Brilha no escuro. Por favor, não lamba.', price: 500, make: makeRadioactive, wake: '#9dff5c' },
+  { id: 'oil', name: 'TAMBOR DE ÓLEO', desc: 'Deixa um rastro bem suspeito na água.', price: 600, make: makeOilDrum, wake: '#2b2b2b' },
+  { id: 'keg', name: 'BARRIL DE CHOPP', desc: 'Trincando de gelado, com dois dedos de espuma.', price: 800, make: makeKeg, wake: '#fffbe8' },
+  { id: 'melon', name: 'MELANCIA', desc: 'Oca por dentro, doce por fora. Cuidado com o caroço.', price: 1000, make: makeMelon, wake: '#ef4b5a' },
+  { id: 'tank', name: "CAIXA D'ÁGUA", desc: 'Mil litros de pura coragem. Tampa não inclusa.', price: 1200, make: makeWaterTank },
+  { id: 'trash', name: 'LATA DE LIXO', desc: 'Reciclar é bom. Descer cachoeira nela é melhor.', price: 1500, make: makeTrashCan },
+  { id: 'duck', name: 'PATINHO DE BORRACHA', desc: 'Quack. Só isso. Quack.', price: 2000, make: makeDuck, wake: '#ffe98a' },
+  { id: 'fridge', name: 'GELADEIRA', desc: 'Tem um pote de sorvete lá dentro. É feijão.', price: 2500, make: makeFridge },
+  { id: 'cooker', name: 'PANELA DE PRESSÃO', desc: 'Psssssss! Feijão no ponto em 3 km.', price: 3000, make: makePressureCooker, wake: '#ffffff' },
+  { id: 'gold', name: 'BARRIL DE OURO', desc: 'Pura ostentação. Se afunda? Ninguém sabe.', price: 10000, make: () => makeBarrel(GOLD), wake: '#fff3a0' },
+];
+
+// Rider heads. rows: palette chars ('.' = clear); eyes: [x, y] pixels drawn in eyeC and shifted
+// sideways by the "look" direction; hand: colour of the hands gripping the rim.
+const RIDER_SKINS = [
+  {
+    id: 'classic', name: 'TURISTA DE CAPA', desc: 'Capa amarela de R$ 15 comprada na lojinha.', price: 0,
+    rows: RIDER_ROWS,
+    pal: { Y: '#ffd23f', y: '#d9a514', h: '#fff3a0', o: '#2a2108', s: '#f1c27d' },
+    eyes: [[3, 5], [6, 5]], eyeC: '#1a1a1a', hand: '#f1c27d',
+  },
+  {
+    id: 'cat', name: 'GATO LARANJA', desc: 'Odeia água. Ama adrenalina. Vai entender.', price: 400,
+    rows: ['o........o', 'oPo....oPo', 'oPPooooPPo', 'oCCCCCCCCo', 'oCcCCCCcCo', 'oCCCCCCCCo', 'oCCCCCCCCo', 'oWCCnnCCWo', 'oCCCCCCCCo', '.oooooooo.'],
+    pal: { o: '#3a1f08', P: '#ff9fb0', C: '#f08a24', c: '#b85c10', n: '#ff7a9a', W: '#ffffff' },
+    eyes: [[3, 6], [6, 6]], eyeC: '#1a1a1a', hand: '#f08a24',
+  },
+  {
+    id: 'pirate', name: 'PIRATA', desc: 'Perdeu o navio, sobrou o barril. Arrr!', price: 600,
+    rows: ['...oooo...', '..oRRRRo..', '.oRRWRRRo.', 'oRRRRRRRRo', 'osssssssso', 'okksssssso', 'okksssssso', 'osssssssso', '.obbbbbbo.'],
+    pal: { o: '#2a1606', R: '#c81e1e', W: '#ffffff', s: '#e0ac69', k: '#111111', b: '#5a3416' },
+    eyes: [[6, 6]], eyeC: '#111111', hand: '#e0ac69',
+  },
+  {
+    id: 'ninja', name: 'NINJA', desc: 'Tão silencioso que ninguém viu ele cair.', price: 800,
+    rows: ['...oooo...', '..oNNNNo..', '.oNNNNNNo.', 'oRRRRRRRRo', 'oNNNNNNNNo', 'oNssssssNo', 'oNNNNNNNNo', 'oNNNNNNNNo', '.oNNNNNNo.'],
+    pal: { o: '#0a0a0a', N: '#22252b', R: '#d62828', s: '#e0ac69' },
+    eyes: [[3, 5], [6, 5]], eyeC: '#111111', hand: '#22252b',
+  },
+  {
+    id: 'clown', name: 'PALHAÇO', desc: 'O circo pegou fogo e ele pulou na cachoeira.', price: 1000,
+    rows: ['.GGBBYYRR.', 'GGBBYYRRGG', 'GBoWWWWoRY', 'BoWWWWWWoR', 'BoWWWWWWoR', 'oWWbWWbWWo', 'oWWWWWWWWo', 'oWWWNNWWWo', 'oWRRRRRRWo', '.oWWWWWWo.'],
+    pal: { G: '#3ddc5a', B: '#3d8fe0', Y: '#ffd23f', R: '#e8434f', o: '#2a2108', W: '#f8f4ec', b: '#3d8fe0', N: '#ff2a2a' },
+    eyes: [[3, 6], [6, 6]], eyeC: '#1a1a1a', hand: '#f8f4ec',
+  },
+  {
+    id: 'viking', name: 'VIKING', desc: 'Já desceu fiordes piores que isso aqui.', price: 1200,
+    rows: ['H........H', 'HH.oooo.HH', '.HoMMMMoH.', '.oMMLMMMo.', 'oMMMMMMMMo', 'oNNNNNNNNo', 'osssssssso', 'oOssssssOo', 'OOOOmmOOOO', '.OOOOOOOO.', '..O.OO.O..'],
+    pal: { H: '#f3e6c8', o: '#22262c', M: '#9aa3ae', L: '#e6ebf0', N: '#5d6670', s: '#f1c27d', O: '#d9761c', m: '#7a1d1d' },
+    eyes: [[3, 6], [6, 6]], eyeC: '#1a1a1a', hand: '#f1c27d',
+  },
+  {
+    id: 'robot', name: 'ROBÔ', desc: 'À prova d’água? O manual diz que sim.', price: 1500,
+    rows: ['....RR....', '....kk....', 'oooooooooo', 'oLMMMMMMMo', 'oMMMMMMMMo', 'oMDDDDDDMo', 'oMDDDDDDMo', 'oMMMMMMMMo', 'oMkMkMkMMo', 'oMMMMMMMMo', 'oooooooooo'],
+    pal: { R: '#ff3b3b', k: '#2b3038', o: '#1b1f26', L: '#e6ebf0', M: '#9aa3ae', D: '#1b2a33' },
+    eyes: [[3, 6], [6, 6]], eyeC: '#3df2ff', hand: '#9aa3ae',
+  },
+  {
+    id: 'astro', name: 'ASTRONAUTA', desc: 'Errou a órbita e caiu bem nas cataratas.', price: 2000,
+    rows: ['...oooo...', '..oWWWWo..', '.oWWWWWWo.', 'oWWWWWWWWo', 'oWVVVVVVWo', 'oWVLVVVVWo', 'oWVVVVVVWo', 'oWWWWWWWWo', 'oGWWWWWWRo'],
+    pal: { o: '#2b3340', W: '#eef2f6', V: '#1b2a4a', L: '#9fd8ff', G: '#3dff6e', R: '#ff3b3b' },
+    eyes: [[3, 6], [6, 6]], eyeC: '#7fd3ff', hand: '#eef2f6',
+  },
+  {
+    id: 'dino', name: 'DINOSSAURO', desc: 'Sobreviveu ao meteoro. Agora quer emoção.', price: 2500,
+    rows: ['...S..S...', '..oSooSo..', '.oddddddo.', 'oddddddddo', 'odLddddddo', 'oddddddddo', 'oddddddddo', 'oddnddnddo', 'okkkkkkkko', '.oWdWdWdo.', '..oooooo..'],
+    pal: { S: '#ff8a1c', o: '#163d12', d: '#4caf50', L: '#9be07a', n: '#163d12', k: '#3a0d0d', W: '#ffffff' },
+    eyes: [[3, 5], [6, 5]], eyeC: '#111111', hand: '#4caf50',
+  },
+  {
+    id: 'et', name: 'ET', desc: 'Atravessou a galáxia só pra descer essa cachoeira.', price: 3000,
+    rows: ['.a......a.', '..k....k..', '...oggo...', '..oggggo..', '.oggLgggo.', 'oggggggggo', 'oggggggggo', 'oggggggggo', '.oggmmggo.', '..oggggo..', '...oooo...'],
+    pal: { a: '#c8ff8a', k: '#2f6b1f', o: '#1d3b12', g: '#7ed957', L: '#c8ff8a', m: '#2f6b1f' },
+    eyes: [[2, 6], [3, 6], [6, 6], [7, 6], [3, 7], [6, 7]], eyeC: '#0a0a0a', hand: '#7ed957',
+  },
+  {
+    id: 'santa', name: 'PAPAI NOEL', desc: 'Trenó na oficina, veio de barril mesmo. Ho ho ho!', price: 5000,
+    rows: ['.......WW.', '......rWW.', '....rrr...', '...rrrrr..', '..rrrrrrr.', '.WWWWWWWW.', '.WssssssW.', '.osssssso.', '.WssppssW.', 'WWWWWWWWWW', 'WWWWmmWWWW', '.WWWWWWWW.', '...WWWW...'],
+    pal: { r: '#d62828', W: '#f4f4f4', s: '#f1c27d', o: '#2a2108', p: '#e8897a', m: '#7a1d1d' },
+    eyes: [[3, 7], [6, 7]], eyeC: '#1a1a1a', hand: '#f4f4f4',
+  },
+];
+
+function makeRiderSkin(skin, look) {
+  const rows = skin.rows;
+  const eyes = new Set(skin.eyes.map(([x, y]) => `${x},${y}`));
+  return paint(rows[0].length, rows.length, (i, j) => (eyes.has(`${i - look},${j}`) ? skin.eyeC : skin.pal[rows[j][i]] || null));
+}
+
+// Rider (head up, looking ahead) sitting in the barrel, drawn with its rim at rimY.
+function drawRiderInBarrel(c, cx, rimY, riderSpr, hand, barrel, lift) {
+  c.drawImage(riderSpr, cx - (riderSpr.width >> 1), rimY - lift - (riderSpr.height - 9));
+  c.drawImage(barrel, cx - (barrel.width >> 1), rimY);
+  if (lift >= RIDER_HIGH - 1) {
+    c.fillStyle = hand; // hands gripping the rim
+    c.fillRect(cx - 7, rimY - 1, 2, 2);
+    c.fillRect(cx + 5, rimY - 1, 2, 2);
+  }
+}
+
 // ===== game =====
 
 // ---------- constants ----------
@@ -912,8 +1196,29 @@ const ui = {
   soundBtn: $('soundBtn'),
   shakeBtn: $('shakeBtn'),
   musicBtn: $('musicBtn'),
-  tiltBtn: $('tiltBtn'),
   sensBtn: $('sensBtn'),
+  achBtn: $('achBtn'),
+  achCount: $('achCount'),
+  ach: $('ach'),
+  achSummary: $('achSummary'),
+  achList: $('achList'),
+  achBack: $('achBack'),
+  overAch: $('overAch'),
+  overAchBtn: $('overAchBtn'),
+  overShopBtn: $('overShopBtn'),
+  overCoins: $('overCoins'),
+  shopBtn: $('shopBtn'),
+  shop: $('shop'),
+  wallet: $('wallet'),
+  shopPreview: $('shopPreview'),
+  shopName: $('shopName'),
+  shopDesc: $('shopDesc'),
+  shopAction: $('shopAction'),
+  tabBarrel: $('tabBarrel'),
+  tabRider: $('tabRider'),
+  shopList: $('shopList'),
+  shopBack: $('shopBack'),
+  toast: $('toast'),
   howTo: $('howTo'),
   aee: $('aee'),
 };
@@ -930,18 +1235,30 @@ const smallScreen = Math.min(screen.width, screen.height) <= 1024;
 const isMobile = (mobileUA || (touchCapable && coarse)) && smallScreen;
 const pcMode = params.has('pc'); // desktop test mode: arrow keys
 const testGaps = params.has('test') ? [] : null; // guaranteed gaps, recorded for automated checks
-const playable = isMobile || pcMode;
+const tapMode = params.get('tap') === 'true'; // test mode: press the left/right half of the screen
+const playable = isMobile || pcMode || tapMode;
 
-const input = new Input(canvas);
+const input = new Input(tapMode ? canvas : null);
 input.sens = save.sens;
-if (!tiltAvailable) save.tilt = false;
-input.tiltOn = save.tilt;
 sfx.setEnabled(save.sound);
 sfx.setMusicEnabled(save.music);
 
 // ---------- sprites ----------
-const barrelSpr = makeBarrel();
-const riderSprs = { '-1': makeRider(-1), 0: makeRider(0), 1: makeRider(1) };
+// equipped skins (validated: an unknown or unowned id falls back to the classic one)
+const owns = (kind, skin) => skin.price === 0 || save.owned[`${kind}:${skin.id}`] === true;
+let barrelSkin = BARREL_SKINS[0];
+let riderSkin = RIDER_SKINS[0];
+let barrelSpr = null;
+let riderSprs = null;
+function applySkins() {
+  barrelSkin = BARREL_SKINS.find((k) => k.id === save.barrel && owns('b', k)) || BARREL_SKINS[0];
+  riderSkin = RIDER_SKINS.find((k) => k.id === save.rider && owns('r', k)) || RIDER_SKINS[0];
+  save.barrel = barrelSkin.id;
+  save.rider = riderSkin.id;
+  barrelSpr = barrelSkin.make();
+  riderSprs = { '-1': makeRiderSkin(riderSkin, -1), 0: makeRiderSkin(riderSkin, 0), 1: makeRiderSkin(riderSkin, 1) };
+}
+applySkins();
 const RIDER_LOW = 3; // rows above the rim while ducked: just the top of the hood
 const RIDER_HIGH = 8; // rows above the rim while peeking: hood, eyes and collar
 const rockSprs = {};
@@ -1026,6 +1343,7 @@ const G = {
   peekWait: 1.5, // seconds until the rider next lifts their head
   peekAge: -1, // >= 0 while peeking
   peekDur: 1,
+  run: null, // per-run achievement counters, see newRunStats()
 };
 
 // ---------- world shape ----------
@@ -1096,6 +1414,295 @@ function spawnRow() {
   G.nextRowY += G.curSpacing;
 }
 
+// ---------- achievements ----------
+// Trophy room: every badge starts grey and lights up once earned. Unlocks are saved right away,
+// so a crash or a closed tab never loses one. tier: 1 bronze, 2 silver, 3 gold, 4 special.
+const ACHIEVEMENTS = [
+  { id: 'm100', icon: '100', tier: 1, name: '100 METROS RASOS', desc: 'Usain Bolt ficaria orgulhoso. Ou não. Desça 100 m.' },
+  { id: 'm300', icon: '300', tier: 1, name: 'ESQUENTANDO O BARRIL', desc: 'Já pegou o jeito da coisa. Desça 300 m.' },
+  { id: 'm500', icon: '500', tier: 2, name: 'MEIO CAMINHO BOIADO', desc: 'Meio quilômetro sem ralar a madeira. Desça 500 m.' },
+  { id: 'm1000', icon: '1K', tier: 3, name: 'UOOEEEEE!', desc: 'A torcida de capa amarela aprova. Desça 1000 m.' },
+  { id: 'm2000', icon: '2K', tier: 3, name: 'PEIXE HONORÁRIO', desc: 'Os lambaris mandaram um abraço. Desça 2000 m.' },
+  { id: 'm3000', icon: '3K', tier: 4, name: 'LENDA DAS CATARATAS', desc: 'Já contam histórias suas no quiosque. Desça 3000 m.' },
+  { id: 'tight', icon: '>|<', tier: 2, name: 'SÓ PASSOU O BARRIL', desc: 'Nem uma folha de papel passava junto. Passe entre duas pedras coladinhas.' },
+  { id: 'tight5', icon: '5x', tier: 3, name: 'COSTUREIRO', desc: 'Enfiou o barril na agulha 5 vezes numa descida só.' },
+  { id: 'graze1', icon: '~', tier: 1, name: 'RASPOU A TINTA', desc: 'O verniz ficou na pedra. Passe raspando numa pedra.' },
+  { id: 'graze10', icon: '10', tier: 2, name: 'BARBEIRO DE PEDRA', desc: 'Fez a barba de 10 pedras numa descida só.' },
+  { id: 'graze100', icon: '100~', tier: 3, name: 'VIVENDO PERIGOSAMENTE', desc: '100 raspadas no total. Sua mãe não precisa saber.' },
+  { id: 'die1', icon: 'X', tier: 1, name: 'LASCOU', desc: 'Literalmente. Quebre o barril pela primeira vez.' },
+  { id: 'early', icon: ':(', tier: 1, name: 'MORREU NA PRAIA', desc: 'Nem deu tempo de molhar o cabelo. Quebre antes dos 30 m.' },
+  { id: 'trave', icon: '-1', tier: 2, name: 'NA TRAVE', desc: 'Faltou ISSO aqui ó. Quebre a menos de 10 m do recorde.' },
+  { id: 'record', icon: 'REC', tier: 2, name: 'SUPERA-TE', desc: 'Bata o seu próprio recorde. O seu eu do passado chora.' },
+  { id: 'runs10', icon: '10x', tier: 1, name: 'TEIMOSO', desc: '10 barris quebrados. O marceneiro agradece.' },
+  { id: 'runs50', icon: '50x', tier: 3, name: 'VICIADO EM BARRIL', desc: '50 descidas. Tá tudo bem aí em casa?' },
+  { id: 'km5', icon: '5KM', tier: 2, name: 'QUILOMETRAGEM ALTA', desc: 'Some 5 km descendo, contando todas as descidas.' },
+  { id: 'km20', icon: '20KM', tier: 3, name: 'HORA DA REVISÃO', desc: '20 km no total. Troca o óleo desse barril.' },
+  { id: 'zen', icon: 'Zz', tier: 2, name: 'MODO PLANTA', desc: 'Fique 5 s sem inclinar o celular. Fotossíntese ativada.' },
+  { id: 'wall', icon: '|o', tier: 2, name: 'ABRAÇA-PAREDE', desc: 'Fique colado no paredão por 2 s. Carente.' },
+  { id: 'mute', icon: 'shh', tier: 2, name: 'MODO BIBLIOTECA', desc: 'Chegue a 300 m com o som desligado. Shhhh.' },
+  { id: 'hard', icon: '!!!', tier: 3, name: 'NERVOS DE AÇO', desc: 'Chegue a 500 m com a inclinação ALTA. Café demais?' },
+  { id: 'pause', icon: '||', tier: 1, name: 'PAUSA PRO CAFEZINHO', desc: 'Pause a descida. Ninguém é de ferro.' },
+  { id: 'night', icon: '(o)', tier: 2, name: 'CORUJA DO RIO', desc: 'Jogue entre meia-noite e 5 da manhã. Vai dormir!' },
+  { id: 'bad3', icon: '3:(', tier: 1, name: 'FASE RUIM', desc: '3 descidas seguidas abaixo de 50 m. Acontece com todo mundo.' },
+  { id: 'shop1', icon: '$', tier: 1, name: 'CONSUMISTA', desc: 'Compre a primeira skin. O capitalismo agradece.' },
+  { id: 'shopall', icon: '$$$', tier: 4, name: 'GUARDA-ROUPA COMPLETO', desc: 'Tenha todas as skins de barril e de piloto. Todas mesmo.' },
+  { id: 'all', icon: '***', tier: 4, name: 'PLATINOU', desc: 'Libere todas as outras conquistas. Agora vai lá fora pegar um sol.' },
+];
+const DIST_ACH = [[100, 'm100'], [300, 'm300'], [500, 'm500'], [1000, 'm1000'], [2000, 'm2000'], [3000, 'm3000']];
+const TIGHT_GAP = 2 * HIT_R + 12; // free space between two rock hitboxes that counts as "só passou o barril"
+const ZEN_SECS = 5;
+const WALL_SECS = 2;
+const WALL_NEAR = 3; // px between the barrel's edge and the wall
+const unseenAch = new Set(); // unlocked since the trophy room was last opened
+const toastQueue = [];
+let toastTimer = 0;
+
+function achUnlocked() {
+  return ACHIEVEMENTS.filter((a) => save.ach[a.id]).length;
+}
+
+function unlock(id) {
+  if (save.ach[id]) return;
+  const a = ACHIEVEMENTS.find((x) => x.id === id);
+  if (!a) return;
+  save.ach[id] = true;
+  unseenAch.add(id);
+  G.run.newAch.push(id);
+  writeSave(save);
+  toastQueue.push(a);
+  if (!toastTimer) nextToast();
+  refreshAchCount();
+  if (id !== 'all' && ACHIEVEMENTS.every((x) => x.id === 'all' || save.ach[x.id])) unlock('all');
+}
+
+function nextToast() {
+  const a = toastQueue.shift();
+  if (!a) {
+    toastTimer = 0;
+    show(ui.toast, false);
+    return;
+  }
+  ui.toast.innerHTML = `<b>CONQUISTA LIBERADA!</b>${a.name}`;
+  show(ui.toast, false);
+  void ui.toast.offsetWidth; // restart the CSS animation
+  show(ui.toast, true);
+  sfx.blip([784, 988, 1175, 1568], 0.06, 0.06);
+  toastTimer = setTimeout(nextToast, 2500);
+}
+
+function refreshAchCount() {
+  ui.achCount.textContent = `${achUnlocked()}/${ACHIEVEMENTS.length}`;
+}
+
+function renderAch() {
+  const n = achUnlocked();
+  ui.achSummary.textContent = `${n}/${ACHIEVEMENTS.length} LIBERADAS`;
+  ui.achList.textContent = '';
+  for (const a of ACHIEVEMENTS) {
+    const on = !!save.ach[a.id];
+    const li = document.createElement('li');
+    li.className = `ach t${a.tier}${on ? '' : ' locked'}${unseenAch.has(a.id) ? ' fresh' : ''}`;
+    li.setAttribute('aria-label', `${a.name}: ${a.desc} ${on ? 'Liberada.' : 'Bloqueada.'}`);
+    const medal = document.createElement('div');
+    medal.className = on && a.icon.length > 3 ? 'medal long' : 'medal';
+    medal.textContent = on ? a.icon : '?';
+    const txt = document.createElement('div');
+    txt.className = 'txt';
+    const name = document.createElement('p');
+    name.className = 'name';
+    name.textContent = a.name;
+    const desc = document.createElement('p');
+    desc.className = 'desc';
+    desc.textContent = a.desc;
+    txt.append(name, desc);
+    li.append(medal, txt);
+    ui.achList.append(li);
+  }
+  unseenAch.clear();
+}
+
+let achFrom = null; // screen to go back to
+function openAch(from) {
+  achFrom = from;
+  renderAch();
+  show(from, false);
+  show(ui.ach, true);
+  ui.achList.scrollTop = 0;
+}
+function closeAch() {
+  show(ui.ach, false);
+  show(achFrom || ui.title, true);
+  G.lockUntil = performance.now() + 300; // the "VOLTAR" tap must not also start a run
+}
+
+function newRunStats() {
+  return { grazes: 0, tight: 0, zenT: 0, wallT: 0, newAch: [] };
+}
+
+// Called when a rock scrolls past the barrel: was the barrel squeezed between this rock and a
+// neighbour on the other side of the same row?
+function checkTight(r) {
+  let L = null;
+  let R = null;
+  for (const o of G.rocks) {
+    if (Math.abs(o.wy - r.wy) > 12) continue;
+    if (o.x < G.bx) {
+      if (!L || o.x > L.x) L = o;
+    } else if (!R || o.x < R.x) R = o;
+  }
+  if (!L || !R || (L !== r && R !== r) || L.tight || R.tight) return;
+  const free = R.x - R.r * 0.82 - (L.x + L.r * 0.82);
+  if (free >= TIGHT_GAP) return;
+  L.tight = R.tight = true;
+  G.run.tight++;
+  unlock('tight');
+  if (G.run.tight >= 5) unlock('tight5');
+}
+
+function achOnGraze() {
+  G.run.grazes++;
+  save.grazes++;
+  unlock('graze1');
+  if (G.run.grazes >= 10) unlock('graze10');
+  if (save.grazes >= 100) unlock('graze100');
+}
+
+function achOnMeters(m) {
+  for (const [d, id] of DIST_ACH) if (m >= d) unlock(id);
+  if (m >= 300 && !save.sound) unlock('mute');
+  if (m >= 500 && save.sens === 2) unlock('hard');
+}
+
+function achOnStep(dt, steer, by) {
+  if (!G.landed) return;
+  G.run.zenT = Math.abs(steer) < 0.05 ? G.run.zenT + dt : 0;
+  if (G.run.zenT >= ZEN_SECS) unlock('zen');
+  const margin = Math.min(G.bx - wallL(by), wallR(by) - G.bx) - HIT_R;
+  G.run.wallT = margin < WALL_NEAR ? G.run.wallT + dt : 0;
+  if (G.run.wallT >= WALL_SECS) unlock('wall');
+}
+
+function achOnDeath(m) {
+  unlock('die1');
+  if (m < 30) unlock('early');
+  if (save.best >= 50 && m < save.best && save.best - m <= 10) unlock('trave');
+  save.runs++;
+  save.totalM += m;
+  save.badStreak = m < 50 ? save.badStreak + 1 : 0;
+  if (save.runs >= 10) unlock('runs10');
+  if (save.runs >= 50) unlock('runs50');
+  if (save.totalM >= 5000) unlock('km5');
+  if (save.totalM >= 20000) unlock('km20');
+  if (save.badStreak >= 3) unlock('bad3');
+  writeSave(save);
+}
+
+// ---------- shop ----------
+const wallet = () => Math.max(0, save.totalM - save.spent);
+const shop = { tab: 'b', sel: 'classic', from: null };
+const shopSkins = () => (shop.tab === 'b' ? BARREL_SKINS : RIDER_SKINS);
+const equippedId = () => (shop.tab === 'b' ? save.barrel : save.rider);
+const pctx = ui.shopPreview.getContext('2d');
+
+function drawShopPreview() {
+  const b = shop.tab === 'b' ? BARREL_SKINS.find((k) => k.id === shop.sel) : barrelSkin;
+  const r = shop.tab === 'r' ? RIDER_SKINS.find((k) => k.id === shop.sel) : riderSkin;
+  const W2 = ui.shopPreview.width;
+  const H2 = ui.shopPreview.height;
+  pctx.imageSmoothingEnabled = false;
+  pctx.fillStyle = '#1f5fae';
+  pctx.fillRect(0, 0, W2, H2);
+  pctx.fillStyle = '#3e88d6';
+  for (let x = 1; x < W2; x += 4) pctx.fillRect(x, (x * 7) % H2, 1, 5);
+  drawRiderInBarrel(pctx, W2 >> 1, H2 - BARREL_H - 1, makeRiderSkin(r, 0), r.hand, b.make(), RIDER_HIGH);
+}
+
+function refreshShop() {
+  ui.wallet.textContent = wallet();
+  ui.tabBarrel.classList.toggle('on', shop.tab === 'b');
+  ui.tabRider.classList.toggle('on', shop.tab === 'r');
+  ui.tabBarrel.setAttribute('aria-selected', String(shop.tab === 'b'));
+  ui.tabRider.setAttribute('aria-selected', String(shop.tab === 'r'));
+  const skin = shopSkins().find((k) => k.id === shop.sel);
+  const have = owns(shop.tab, skin);
+  const using = equippedId() === skin.id;
+  ui.shopName.textContent = skin.name;
+  ui.shopDesc.textContent = skin.desc;
+  const btn = ui.shopAction;
+  btn.classList.remove('wait', 'using');
+  if (using) {
+    btn.textContent = 'EM USO';
+    btn.classList.add('using');
+  } else if (have) btn.textContent = 'USAR';
+  else if (wallet() >= skin.price) btn.textContent = `COMPRAR: ${skin.price} m`;
+  else {
+    btn.textContent = `FALTAM ${skin.price - wallet()} m`;
+    btn.classList.add('wait');
+  }
+  drawShopPreview();
+
+  ui.shopList.textContent = '';
+  for (const k of shopSkins()) {
+    const li = document.createElement('li');
+    const b = document.createElement('button');
+    b.type = 'button';
+    const mine = owns(shop.tab, k);
+    const eq = equippedId() === k.id;
+    b.className = `item${mine ? '' : ' locked'}${eq ? ' equipped' : ''}${k.id === shop.sel ? ' sel' : ''}`;
+    b.dataset.id = k.id;
+    b.setAttribute('aria-label', `${k.name}${mine ? '' : `, ${k.price} metros`}${eq ? ', em uso' : ''}`);
+    const cv = shop.tab === 'b' ? k.make() : makeRiderSkin(k, 0);
+    cv.setAttribute('aria-hidden', 'true');
+    const label = document.createElement('span');
+    label.textContent = eq ? 'EM USO' : mine ? 'SUA' : `${k.price} m`;
+    b.append(cv, label);
+    li.append(b);
+    ui.shopList.append(li);
+  }
+}
+
+function openShop(from) {
+  shop.from = from;
+  shop.sel = equippedId();
+  show(from, false);
+  show(ui.shop, true);
+  refreshShop();
+  ui.shopList.scrollTop = 0;
+}
+function closeShop() {
+  show(ui.shop, false);
+  show(shop.from || ui.title, true);
+  G.lockUntil = performance.now() + 300;
+}
+function setShopTab(tab) {
+  shop.tab = tab;
+  shop.sel = equippedId();
+  refreshShop();
+  ui.shopList.scrollTop = 0;
+}
+
+function shopAct() {
+  const skin = shopSkins().find((k) => k.id === shop.sel);
+  if (equippedId() === skin.id) return;
+  if (!owns(shop.tab, skin)) {
+    if (wallet() < skin.price) {
+      sfx.blip([220, 180], 0.08, 0.05);
+      return;
+    }
+    save.spent += skin.price;
+    save.owned[`${shop.tab}:${skin.id}`] = true;
+    sfx.blip([523, 659, 784, 1047, 1319], 0.06, 0.06);
+    unlock('shop1');
+    const all = BARREL_SKINS.every((k) => owns('b', k)) && RIDER_SKINS.every((k) => owns('r', k));
+    if (all) unlock('shopall');
+  } else sfx.blip([880, 1175], 0.05, 0.05);
+  if (shop.tab === 'b') save.barrel = skin.id;
+  else save.rider = skin.id;
+  applySkins();
+  writeSave(save);
+  refreshShop();
+}
+
 // ---------- flow ----------
 function show(el, on) {
   el.hidden = !on;
@@ -1125,14 +1732,15 @@ function resetRun() {
   G.trauma = 0;
   G.flash = 0;
   G.hintShown = false;
+  G.run = newRunStats();
   endCheer();
 }
 
 function start() {
-  if (!playable || G.state === 'playing') return;
+  if (!playable || G.state === 'playing' || !ui.ach.hidden || !ui.shop.hidden) return;
   if (performance.now() < G.lockUntil) return;
   sfx.unlock();
-  if (input.tiltOn) input.requestPermission(); // iOS prompt; must be called synchronously from the tap
+  if (!pcMode && !tapMode) input.requestPermission(); // iOS prompt; must be called synchronously from the tap
   input.calibrate();
   resetRun();
   G.state = 'playing';
@@ -1143,14 +1751,16 @@ function start() {
   ui.score.textContent = '0 m';
   ui.best.textContent = `REC ${save.best} m`;
   ui.best.classList.remove('beat');
-  showHint(pcMode ? 'USE ← → NO TECLADO' : input.tiltOn ? 'INCLINE O CELULAR' : 'TOQUE À ESQUERDA<br>OU À DIREITA');
+  showHint(tapMode ? 'TOQUE À ESQUERDA<br>OU À DIREITA' : pcMode ? 'USE ← → NO TECLADO' : 'INCLINE O CELULAR');
   sfx.stopLose();
   sfx.startWater();
   sfx.startMusic();
   sfx.splash();
   requestWakeLock();
+  const hour = new Date().getHours();
+  if (hour < 5) unlock('night');
   setTimeout(() => {
-    if (input.tiltOn && G.state === 'playing' && !input.hasSensor && !pcMode) showHint('SEGURE À ESQUERDA<br>OU À DIREITA');
+    if (G.state === 'playing' && !input.hasSensor && !pcMode && !tapMode) showHint('SENSOR DE MOVIMENTO<br>NÃO ENCONTRADO');
   }, 1200);
 }
 
@@ -1167,6 +1777,7 @@ function die() {
   G.hitStopUntil = now + 120; // hit-stop: freeze the impact frame
   G.trauma = Math.min(1, G.trauma + 0.9);
   G.flash = reducedMotion ? 0 : 0.07; // single flash, well under 3/s
+  achOnDeath(G.meters);
   sfx.crash();
   sfx.stopWater(0.35);
   sfx.stopMusic();
@@ -1203,6 +1814,10 @@ function gameOver() {
   ui.overBest.textContent = save.best;
   ui.titleBest.textContent = save.best;
   show(ui.newRec, rec);
+  const got = G.run.newAch.length;
+  ui.overAch.textContent = got === 1 ? '+1 CONQUISTA NOVA!' : `+${got} CONQUISTAS NOVAS!`;
+  show(ui.overAch, got > 0);
+  ui.overCoins.textContent = `+${m} m NO COFRE · SALDO ${wallet()} m`;
   show(ui.hud, false);
   show(ui.over, true);
   G.lockUntil = performance.now() + 650; // avoid restarting with a stray tap
@@ -1221,6 +1836,7 @@ function pause() {
   if (G.state !== 'playing') return;
   G.state = 'paused';
   show(ui.pause, true);
+  unlock('pause');
   sfx.suspend();
 }
 
@@ -1382,6 +1998,7 @@ function step(dt) {
         r.passed = true;
         const gap = Math.abs(r.x - G.bx) - r.r * 0.82 - HIT_R;
         if (gap < 4 && gap >= 0) nearMiss(r);
+        checkTight(r);
       }
       G.rocks[w++] = r;
     }
@@ -1391,6 +2008,7 @@ function step(dt) {
       die();
       return;
     }
+    achOnStep(dt, steer, by);
 
     // spray at the waterline and a wake trailing above the barrel
     if (curBY > 0 && Math.random() < dt * 40) {
@@ -1398,13 +2016,14 @@ function step(dt) {
       emit(G.bx + side * 9, by + 6, side * (15 + Math.random() * 30), G.speed - 20 - Math.random() * 30, 0.35, '#e6f5ff', 1, 0);
     }
     if (curBY > 0 && Math.random() < dt * 30) {
-      emit(G.bx + (Math.random() * 14 - 7), by - 12, 0, G.speed * 0.25, 0.5, '#7fbfff', 1, 0);
+      emit(G.bx + (Math.random() * 14 - 7), by - 12, 0, G.speed * 0.25, 0.5, barrelSkin.wake || '#7fbfff', 1, 0);
     }
 
     const m = Math.floor(dist / PX_PER_M);
     if (m !== G.meters) {
       G.meters = m;
       ui.score.textContent = `${m} m`;
+      achOnMeters(m);
       if (m >= G.nextMilestone) {
         milestone(G.nextMilestone);
         G.nextMilestone += 100;
@@ -1414,6 +2033,7 @@ function step(dt) {
         ui.best.textContent = 'NOVO REC!';
         ui.best.classList.add('beat');
         sfx.blip([784, 1047, 1319], 0.07, 0.06);
+        unlock('record');
       }
     }
     if (G.hintShown && G.playT > 3.5) {
@@ -1472,6 +2092,7 @@ function collides(by) {
 
 function nearMiss(r) {
   sfx.tick();
+  achOnGraze();
   for (let k = 0; k < 6; k++) {
     emit(r.x + (Math.random() * 2 - 1) * r.r, r.wy - r.r, (Math.random() * 2 - 1) * 30, G.speed - 40 - Math.random() * 40, 0.35, '#fff6b0', 1, 0);
   }
@@ -1550,14 +2171,7 @@ function render(alpha) {
       if (a > e) look = [0, -1, 0, 1][Math.floor((a - e) / 0.3) % 4]; // glance around
     }
     const lift = Math.round(lerp(RIDER_LOW, RIDER_HIGH, clamp(up, 0, 1)));
-    const rimY = -BARREL_H / 2;
-    ctx.drawImage(riderSprs[look], -5, rimY - lift);
-    ctx.drawImage(barrelSpr, -BARREL_W / 2, -BARREL_H / 2);
-    if (lift >= RIDER_HIGH - 1) {
-      ctx.fillStyle = '#f1c27d'; // hands gripping the rim
-      ctx.fillRect(-7, rimY - 1, 2, 2);
-      ctx.fillRect(5, rimY - 1, 2, 2);
-    }
+    drawRiderInBarrel(ctx, 0, -BARREL_H / 2, riderSprs[look], riderSkin.hand, barrelSpr, lift);
     ctx.restore();
     ctx.fillStyle = '#eaf7ff';
     const wob = flick & 1;
@@ -1685,18 +2299,18 @@ function releaseWakeLock() {
 
 // ---------- settings ----------
 function refreshToggles() {
-  ui.tiltBtn.hidden = !tiltAvailable || !isMobile;
-  ui.sensBtn.hidden = ui.tiltBtn.hidden || !save.tilt;
-  ui.howTo.innerHTML = pcMode
-    ? 'USE ← → PARA<br>DESVIAR DAS PEDRAS'
-    : save.tilt
-      ? 'INCLINE O CELULAR PARA<br>DESVIAR DAS PEDRAS'
-      : 'TOQUE À ESQUERDA OU À<br>DIREITA PARA DESVIAR';
+  ui.sensBtn.hidden = !isMobile;
+  ui.howTo.innerHTML = tapMode
+    ? 'TOQUE À ESQUERDA OU À<br>DIREITA PARA DESVIAR'
+    : pcMode
+      ? 'USE ← → PARA<br>DESVIAR DAS PEDRAS'
+      : tiltAvailable
+        ? 'INCLINE O CELULAR PARA<br>DESVIAR DAS PEDRAS'
+        : 'ABRA EM HTTPS PARA<br>USAR O SENSOR';
   for (const [btn, on, name] of [
     [ui.soundBtn, save.sound, 'Som'],
     [ui.musicBtn, save.music, 'Música'],
     [ui.shakeBtn, save.shake, 'Tremor'],
-    [ui.tiltBtn, save.tilt, 'Sensor'],
   ]) {
     btn.classList.toggle('off', !on);
     btn.setAttribute('aria-pressed', String(on));
@@ -1722,32 +2336,54 @@ bindToggle(ui.musicBtn, () => {
   save.music = !save.music;
   sfx.setMusicEnabled(save.music);
 });
-bindToggle(ui.tiltBtn, () => {
-  save.tilt = !save.tilt;
-  input.tiltOn = save.tilt;
-  if (!save.tilt) return;
-  // ask for motion access right away (iOS needs it from this tap); turn back off if refused
-  input.requestPermission().then((ok) => {
-    if (ok) return;
-    save.tilt = false;
-    input.tiltOn = false;
-    writeSave(save);
-    refreshToggles();
-  });
-});
 bindToggle(ui.shakeBtn, () => {
   save.shake = !save.shake;
 });
 bindToggle(ui.sensBtn, () => {
   save.sens = (save.sens + 1) % 3;
   input.sens = save.sens;
+  input.requestPermission(); // also a good moment to get the iOS motion prompt out of the way
 });
 
 // ---------- wiring ----------
 ui.title.addEventListener('click', start);
 ui.over.addEventListener('click', (e) => {
   if (e.target.closest('#menuBtn')) toTitle();
-  else start();
+  else if (e.target.closest('#overAchBtn')) {
+    if (performance.now() >= G.lockUntil) openAch(ui.over);
+  } else if (e.target.closest('#overShopBtn')) {
+    if (performance.now() >= G.lockUntil) openShop(ui.over);
+  } else start();
+});
+ui.achBtn.addEventListener('click', (e) => {
+  e.stopPropagation(); // the title screen itself starts a run on tap
+  sfx.unlock();
+  sfx.blip([880], 0.05, 0.05);
+  openAch(ui.title);
+});
+ui.shopBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  sfx.unlock();
+  sfx.blip([880], 0.05, 0.05);
+  openShop(ui.title);
+});
+ui.shopBack.addEventListener('click', () => {
+  sfx.blip([660], 0.05, 0.05);
+  closeShop();
+});
+ui.shopAction.addEventListener('click', shopAct);
+ui.tabBarrel.addEventListener('click', () => setShopTab('b'));
+ui.tabRider.addEventListener('click', () => setShopTab('r'));
+ui.shopList.addEventListener('click', (e) => {
+  const b = e.target.closest('.item');
+  if (!b) return;
+  shop.sel = b.dataset.id;
+  sfx.blip([990], 0.04, 0.04);
+  refreshShop();
+});
+ui.achBack.addEventListener('click', () => {
+  sfx.blip([660], 0.05, 0.05);
+  closeAch();
 });
 ui.pause.addEventListener('click', resume);
 document.addEventListener('visibilitychange', () => {
@@ -1757,13 +2393,18 @@ window.addEventListener('resize', resize);
 window.addEventListener('orientationchange', resize);
 document.addEventListener('contextmenu', (e) => e.preventDefault());
 window.addEventListener('keydown', (e) => {
+  if (e.code === 'Escape' && !ui.ach.hidden) return closeAch();
+  if (e.code === 'Escape' && !ui.shop.hidden) return closeShop();
   if (e.code !== 'Space' && e.code !== 'Enter') return;
+  if (!ui.ach.hidden || !ui.shop.hidden) return;
   if (G.state === 'title' || G.state === 'over') start();
   else if (G.state === 'paused') resume();
 });
 
 ui.titleBest.textContent = save.best;
+G.run = newRunStats();
 refreshToggles();
+refreshAchCount();
 if (!playable) {
   show(ui.title, false);
   show(ui.desktop, true);
@@ -1791,6 +2432,13 @@ if (params.has('test')) {
       return G.state;
     },
     cheer: () => startCheer(),
+    unlock: (id) => unlock(id),
+    achievements: () => ({ ...save.ach }),
+    give: (m) => {
+      save.totalM += m;
+      writeSave(save);
+    },
+    save: () => JSON.parse(JSON.stringify(save)),
     rockList: () => G.rocks.map((r) => ({ wy: r.wy, x: r.x, r: r.r })),
     gaps: () => testGaps.filter((g) => g.wy > G.cam - 30),
     walls: (wy) => [wallL(wy), wallR(wy)],
