@@ -1281,11 +1281,15 @@ const POWER_ICONS = {
   double: { rows: ['.........', 'Y...Y.YYY', '.Y.Y....Y', '..Y...YYY', '.Y.Y..Y..', 'Y...Y.YYY', '.........', '.ccccccc.', '.........'], pal: { Y: '#ffd23f', c: '#a0520f' } },
   invert: { rows: ['......P..', '......PP.', 'PPPPPPPPP', '......PP.', '......P..', '..P......', '.PP......', 'PPPPPPPPP', '.PP......'], pal: { P: '#ff7ad9' } },
   fog: { rows: ['.........', '...WWW...', '..WWWWW..', '.WWWWWWWW', 'WWWWWWWWW', 'WWWWWWWWW', '.WWWWWWW.', '.........', 'g.g.g.g.g'], pal: { W: '#e6ebf0', g: '#9aa3ae' } },
+  mystery: { rows: ['..YYYYY..', '.YY...YY.', '.YY...YY.', '.....YY..', '....YY...', '....YY...', '.........', '....YY...', '....YY...'], pal: { Y: '#ffd23f' } },
   big: { rows: ['kk.....kk', 'k.......k', '..BBBBB..', '.BBbBbBB.', '.BBBBBBB.', '.BBbBbBB.', '..BBBBB..', 'k.......k', 'kk.....kk'], pal: { B: '#cf9a5c', b: '#6e4420', k: '#ff3b3b' } },
 };
 const makeIcon = (ic) => paint(9, 9, (i, j) => ic.pal[ic.rows[j][i]] || null);
-// Capsule around an icon: green ring for power-ups, red for power-downs.
+// Capsule around an icon: green ring for power-ups, red for power-downs, purple for the
+// mystery one (good === null).
 function makeCapsule(ic, good) {
+  const ring = good === null ? '#b16cff' : good ? '#3ddc5a' : '#ff3b3b';
+  const fill = good === null ? '#2a1450' : good ? '#123b73' : '#3a0a1a';
   const S = 15;
   const icon = makeIcon(ic);
   const c = paint(S, S, (i, j) => {
@@ -1294,8 +1298,8 @@ function makeCapsule(ic, good) {
     const d = Math.max(Math.abs(dx), Math.abs(dy)) * 0.6 + Math.hypot(dx, dy) * 0.4;
     if (d > 7.3) return null;
     if (d > 6.3) return '#0f1117';
-    if (d > 5.3) return good ? '#3ddc5a' : '#ff3b3b';
-    return good ? '#123b73' : '#3a0a1a';
+    if (d > 5.3) return ring;
+    return fill;
   });
   c.getContext('2d').drawImage(icon, 3, 3);
   return c;
@@ -1726,6 +1730,9 @@ const POWERS = [
 ];
 const POWER_BY_ID = Object.fromEntries(POWERS.map((pw) => [pw.id, pw]));
 const capsuleSprs = Object.fromEntries(POWERS.map((pw) => [pw.id, makeCapsule(POWER_ICONS[pw.id], pw.good)]));
+capsuleSprs.mystery = makeCapsule(POWER_ICONS.mystery, null); // "?" capsule: rolls any power, good or bad
+const MYSTERY_CHANCE = 0.2; // share of spawned pickups that are "?"
+
 const iconSprs = Object.fromEntries(POWERS.map((pw) => [pw.id, makeIcon(POWER_ICONS[pw.id])]));
 const PICKUP_R = 7;
 const SLOW_K = 0.6; // world speed while "câmera lenta" is on
@@ -1881,11 +1888,14 @@ function spawnRow() {
   // gapW - 2 * PICKUP_R wide, more than the barrel) stays free: a bad one can always be dodged.
   let pickup = false;
   if (i >= 8 && G.rng() < 0.075) {
-    const bad = G.rng() < 0.38;
-    const pool = POWERS.filter((pw) => pw.good !== bad);
-    const pw = pool[Math.floor(G.rng() * pool.length)];
+    let id = 'mystery';
+    if (G.rng() >= MYSTERY_CHANCE) {
+      const bad = G.rng() < 0.38;
+      const pool = POWERS.filter((pw) => pw.good !== bad);
+      id = pool[Math.floor(G.rng() * pool.length)].id;
+    }
     const side = G.rng() < 0.5 ? -1 : 1;
-    G.pickups.push({ wy, x: g + side * (gapW / 2 - PICKUP_R), id: pw.id, ph: G.rng() * 6 });
+    G.pickups.push({ wy, x: g + side * (gapW / 2 - PICKUP_R), id, ph: G.rng() * 6 });
     pickup = true;
   }
   // coin bubbles float in the guaranteed gap, so they never force an impossible move
@@ -2811,14 +2821,19 @@ function tickFx(dt) {
 }
 
 function takePickup(pk, x) {
-  const pw = POWER_BY_ID[pk.id];
+  // "?" rolls any of the 8 powers, every one equally likely
+  const mystery = pk.id === 'mystery';
+  const pw = mystery ? POWERS[Math.floor(Math.random() * POWERS.length)] : POWER_BY_ID[pk.id];
   // mini and inflated cancel each other out
-  if (pk.id === 'mini') delete G.fx.big;
-  if (pk.id === 'big') delete G.fx.mini;
-  G.fx[pk.id] = pw.dur || 1;
-  popText(pw.name, pw.good ? '' : 'bad');
-  if (pw.good) sfx.blip([523, 784, 1047, 1568], 0.05, 0.06);
-  else sfx.blip([392, 311, 233, 175], 0.07, 0.06);
+  if (pw.id === 'mini') delete G.fx.big;
+  if (pw.id === 'big') delete G.fx.mini;
+  G.fx[pw.id] = pw.dur || 1;
+  popText(mystery ? `? ${pw.name}` : pw.name, pw.good ? '' : 'bad');
+  const result = () => (pw.good ? sfx.blip([523, 784, 1047, 1568], 0.05, 0.06) : sfx.blip([392, 311, 233, 175], 0.07, 0.06));
+  if (mystery) {
+    sfx.blip([660, 880, 660, 880], 0.04, 0.05); // roulette, then the result
+    setTimeout(result, 170);
+  } else result();
   for (let k = 0; k < 12; k++) {
     const a = (k / 12) * Math.PI * 2;
     emit(x, pk.wy, Math.cos(a) * 55, Math.sin(a) * 55 + G.speed * 0.5, 0.4, pw.good ? (k % 2 ? '#3ddc5a' : '#ffffff') : k % 2 ? '#ff3b3b' : '#ff7ad9', 1, 0);
