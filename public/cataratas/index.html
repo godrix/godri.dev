@@ -25,7 +25,7 @@
   <canvas id="game" aria-label="Jogo Cataratas"></canvas>
 
   <div id="hud" hidden>
-    <span id="score">0 m</span>
+    <span class="hud-l"><span id="score">0 m</span><span class="hud-coins"><i class="coin" aria-hidden="true"></i><span id="hudCoins">0</span></span></span>
     <span id="best">REC 0 m</span>
   </div>
   <div id="pop" aria-live="polite"></div>
@@ -71,7 +71,7 @@
     <div class="menu-row">
       <button id="shopBtn" class="trophy" type="button" aria-label="Loja">
         <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5 1h6v1h2v2h1v2h1v4h-1v2h-1v2h-2v1H5v-1H3v-2H2v-2H1V6h1V4h1V2h2zM7 4v1H6v2h1v1h2v1H6v2h1v1h2v-1h1V9H9V8H7V7h3V5H9V4z" fill-rule="evenodd"/></svg>
-        <span>LOJA</span>
+        <span>LOJA<br><span id="shopCoins">0</span></span>
       </button>
       <button id="achBtn" class="trophy" type="button" aria-label="Conquistas">
         <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 2h10v2h2v3h-1v1h-2v1h-1v1H9v2h2v1h1v2H4v-2h1v-1h2v-2H5V9H4V8H2V7H1V4h2zM2 5v1h1V5zM13 5v1h1V5z"/></svg>
@@ -89,7 +89,7 @@
 
   <section id="shop" class="screen solid" hidden>
     <h2>LOJA</h2>
-    <p class="rec">SALDO: <span id="wallet">0</span> m</p>
+    <p class="rec">SALDO: <i class="coin" aria-hidden="true"></i><span id="wallet">0</span> MOEDAS</p>
     <div class="shop-top">
       <canvas id="shopPreview" width="28" height="36" aria-hidden="true"></canvas>
       <div class="shop-info">
@@ -103,7 +103,7 @@
       <button id="tabRider" class="tab" type="button" role="tab" aria-selected="false">PILOTOS</button>
     </div>
     <ul id="shopList" class="shop-grid"></ul>
-    <p class="shop-tip">CADA METRO DESCIDO VIRA SALDO</p>
+    <p class="shop-tip">ESTOURE AS BOLHAS DO RIO E GANHE MOEDAS NAS CONQUISTAS</p>
     <button id="shopBack" type="button">VOLTAR</button>
   </section>
 

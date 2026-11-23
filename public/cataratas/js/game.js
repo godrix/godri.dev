@@ -48,8 +48,9 @@ function defaults(reducedMotion) {
     v: VERSION, best: 0, sound: true, music: true, shake: !reducedMotion, sens: 1,
     // achievements: unlocked ids -> true, plus the lifetime stats some of them count
     ach: {}, runs: 0, totalM: 0, grazes: 0, badStreak: 0,
-    // skins: wallet = totalM - spent; owned keys are "b:<id>" / "r:<id>"
-    spent: 0, owned: {}, barrel: 'classic', rider: 'classic',
+    // coins come from bubbles and achievement rewards; owned keys are "b:<id>" / "r:<id>"
+    coins: 0, coinsTotal: 0, bubbles: 0, tightTotal: 0, lastM: -1, paid: {},
+    owned: {}, barrel: 'classic', rider: 'classic',
   };
 }
 
@@ -71,8 +72,16 @@ function migrate(obj, d) {
   }
   if (typeof obj.barrel === 'string') out.barrel = obj.barrel;
   if (typeof obj.rider === 'string') out.rider = obj.rider;
-  for (const k of ['runs', 'totalM', 'grazes', 'badStreak', 'spent']) {
+  for (const k of ['runs', 'totalM', 'grazes', 'badStreak', 'coins', 'coinsTotal', 'bubbles', 'tightTotal', 'lastM']) {
     if (Number.isFinite(obj[k]) && obj[k] >= 0) out[k] = Math.floor(obj[k]);
+  }
+  if (obj.paid && typeof obj.paid === 'object') {
+    for (const k of Object.keys(obj.paid)) if (obj.paid[k] === true) out.paid[k] = true;
+  }
+  // The first shop used meters as money (totalM - spent): convert that balance, 20 m = 1 coin.
+  if (!Number.isFinite(obj.coins) && Number.isFinite(obj.totalM)) {
+    const spent = Number.isFinite(obj.spent) ? obj.spent : 0;
+    out.coins = Math.floor(Math.max(0, obj.totalM - spent) / 20);
   }
   out.v = VERSION;
   return out;
@@ -626,6 +635,55 @@ function tick() {
     vib.stop(t + dur + 0.05);
     loseNodes.push(o, vib);
   }
+  // Cartoon falling scream ("aaAAAaahh"): a voice through "a" formants, yelping up, then
+  // dropping away as if the rider fell off. Synthesized in the style of the classic movie scream.
+  function scream() {
+    if (!ac || !enabled) return;
+    const t = ac.currentTime + 0.03;
+    const dur = 1.05;
+    const o = ac.createOscillator();
+    o.type = 'sawtooth';
+    o.frequency.setValueAtTime(420, t);
+    o.frequency.exponentialRampToValueAtTime(780, t + 0.1);
+    o.frequency.exponentialRampToValueAtTime(640, t + 0.3);
+    o.frequency.exponentialRampToValueAtTime(860, t + 0.45);
+    o.frequency.exponentialRampToValueAtTime(240, t + dur);
+    const vib = ac.createOscillator();
+    vib.frequency.value = 7.5;
+    const vg = ac.createGain();
+    vg.gain.value = 22;
+    vib.connect(vg).connect(o.frequency);
+    const g = ac.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.55, t + 0.04);
+    g.gain.setValueAtTime(0.55, t + 0.5);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    const amps = [1, 0.7, 0.3];
+    for (let i = 0; i < 3; i++) {
+      const bp = ac.createBiquadFilter();
+      bp.type = 'bandpass';
+      bp.Q.value = i === 0 ? 5 : 7;
+      bp.frequency.setValueAtTime(VOWELS.e[i], t);
+      bp.frequency.setTargetAtTime(VOWELS.a[i], t + 0.06, 0.05);
+      bp.frequency.setTargetAtTime(VOWELS.o[i], t + 0.7, 0.1);
+      const bg = ac.createGain();
+      bg.gain.value = amps[i] * 2.6;
+      o.connect(bp).connect(bg).connect(g);
+    }
+    const lp = ac.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = 4200;
+    g.connect(lp).connect(master);
+    o.start(t);
+    vib.start(t);
+    o.stop(t + dur + 0.05);
+    vib.stop(t + dur + 0.05);
+  }
+
+  function coin(gold) {
+    blip(gold ? [988, 1319, 1568, 2093] : [988, 1319], 0.05, 0.06);
+  }
+
   function lose(delay = 0.35) {
     if (!ac || !enabled) return;
     stopLose();
@@ -648,7 +706,7 @@ function tick() {
 
   return {
     setEnabled, unlock, suspend, resume, startWater, setWater, stopWater, crash, splash, blip, tick, cheer, stopCheer,
-    setMusicEnabled, startMusic, stopMusic, setMusicIntensity, duckMusic, lose, stopLose,
+    setMusicEnabled, startMusic, stopMusic, setMusicIntensity, duckMusic, lose, stopLose, scream, coin,
   };
 })();
 
@@ -1050,16 +1108,16 @@ function makeDuck() {
 
 const BARREL_SKINS = [
   { id: 'classic', name: 'BARRIL CLÁSSICO', desc: 'Madeira de lei com cheirinho de vinho velho.', price: 0, make: () => makeBarrel(WOOD) },
-  { id: 'radio', name: 'BARRIL RADIOATIVO', desc: 'Brilha no escuro. Por favor, não lamba.', price: 500, make: makeRadioactive, wake: '#9dff5c' },
-  { id: 'oil', name: 'TAMBOR DE ÓLEO', desc: 'Deixa um rastro bem suspeito na água.', price: 600, make: makeOilDrum, wake: '#2b2b2b' },
-  { id: 'keg', name: 'BARRIL DE CHOPP', desc: 'Trincando de gelado, com dois dedos de espuma.', price: 800, make: makeKeg, wake: '#fffbe8' },
-  { id: 'melon', name: 'MELANCIA', desc: 'Oca por dentro, doce por fora. Cuidado com o caroço.', price: 1000, make: makeMelon, wake: '#ef4b5a' },
-  { id: 'tank', name: "CAIXA D'ÁGUA", desc: 'Mil litros de pura coragem. Tampa não inclusa.', price: 1200, make: makeWaterTank },
-  { id: 'trash', name: 'LATA DE LIXO', desc: 'Reciclar é bom. Descer cachoeira nela é melhor.', price: 1500, make: makeTrashCan },
-  { id: 'duck', name: 'PATINHO DE BORRACHA', desc: 'Quack. Só isso. Quack.', price: 2000, make: makeDuck, wake: '#ffe98a' },
-  { id: 'fridge', name: 'GELADEIRA', desc: 'Tem um pote de sorvete lá dentro. É feijão.', price: 2500, make: makeFridge },
-  { id: 'cooker', name: 'PANELA DE PRESSÃO', desc: 'Psssssss! Feijão no ponto em 3 km.', price: 3000, make: makePressureCooker, wake: '#ffffff' },
-  { id: 'gold', name: 'BARRIL DE OURO', desc: 'Pura ostentação. Se afunda? Ninguém sabe.', price: 10000, make: () => makeBarrel(GOLD), wake: '#fff3a0' },
+  { id: 'radio', name: 'BARRIL RADIOATIVO', desc: 'Brilha no escuro. Por favor, não lamba.', price: 30, make: makeRadioactive, trail: 'radio' },
+  { id: 'oil', name: 'TAMBOR DE ÓLEO', desc: 'Deixa um rastro bem suspeito na água.', price: 40, make: makeOilDrum, trail: 'oil' },
+  { id: 'keg', name: 'BARRIL DE CHOPP', desc: 'Trincando de gelado, com dois dedos de espuma.', price: 50, make: makeKeg, trail: 'foam' },
+  { id: 'melon', name: 'MELANCIA', desc: 'Oca por dentro, doce por fora. Cuidado com o caroço.', price: 60, make: makeMelon, trail: 'melon' },
+  { id: 'tank', name: "CAIXA D'ÁGUA", desc: 'Mil litros de pura coragem. Tampa não inclusa.', price: 80, make: makeWaterTank },
+  { id: 'trash', name: 'LATA DE LIXO', desc: 'Reciclar é bom. Descer cachoeira nela é melhor.', price: 100, make: makeTrashCan },
+  { id: 'duck', name: 'PATINHO DE BORRACHA', desc: 'Quack. Só isso. Quack.', price: 120, make: makeDuck, trail: 'duck' },
+  { id: 'fridge', name: 'GELADEIRA', desc: 'Tem um pote de sorvete lá dentro. É feijão.', price: 150, make: makeFridge },
+  { id: 'cooker', name: 'PANELA DE PRESSÃO', desc: 'Psssssss! Feijão no ponto em 3 km.', price: 200, make: makePressureCooker, trail: 'steam' },
+  { id: 'gold', name: 'BARRIL DE OURO', desc: 'Pura ostentação. Se afunda? Ninguém sabe.', price: 500, make: () => makeBarrel(GOLD), trail: 'gold' },
 ];
 
 // Rider heads. rows: palette chars ('.' = clear); eyes: [x, y] pixels drawn in eyeC and shifted
@@ -1072,66 +1130,226 @@ const RIDER_SKINS = [
     eyes: [[3, 5], [6, 5]], eyeC: '#1a1a1a', hand: '#f1c27d',
   },
   {
-    id: 'cat', name: 'GATO LARANJA', desc: 'Odeia água. Ama adrenalina. Vai entender.', price: 400,
+    id: 'cat', name: 'GATO LARANJA', desc: 'Odeia água. Ama adrenalina. Vai entender.', price: 25,
     rows: ['o........o', 'oPo....oPo', 'oPPooooPPo', 'oCCCCCCCCo', 'oCcCCCCcCo', 'oCCCCCCCCo', 'oCCCCCCCCo', 'oWCCnnCCWo', 'oCCCCCCCCo', '.oooooooo.'],
     pal: { o: '#3a1f08', P: '#ff9fb0', C: '#f08a24', c: '#b85c10', n: '#ff7a9a', W: '#ffffff' },
     eyes: [[3, 6], [6, 6]], eyeC: '#1a1a1a', hand: '#f08a24',
   },
   {
-    id: 'pirate', name: 'PIRATA', desc: 'Perdeu o navio, sobrou o barril. Arrr!', price: 600,
+    id: 'pirate', name: 'PIRATA', desc: 'Perdeu o navio, sobrou o barril. Arrr!', price: 35,
     rows: ['...oooo...', '..oRRRRo..', '.oRRWRRRo.', 'oRRRRRRRRo', 'osssssssso', 'okksssssso', 'okksssssso', 'osssssssso', '.obbbbbbo.'],
     pal: { o: '#2a1606', R: '#c81e1e', W: '#ffffff', s: '#e0ac69', k: '#111111', b: '#5a3416' },
     eyes: [[6, 6]], eyeC: '#111111', hand: '#e0ac69',
   },
   {
-    id: 'ninja', name: 'NINJA', desc: 'Tão silencioso que ninguém viu ele cair.', price: 800,
+    id: 'ninja', name: 'NINJA', desc: 'Tão silencioso que ninguém viu ele cair.', price: 45,
     rows: ['...oooo...', '..oNNNNo..', '.oNNNNNNo.', 'oRRRRRRRRo', 'oNNNNNNNNo', 'oNssssssNo', 'oNNNNNNNNo', 'oNNNNNNNNo', '.oNNNNNNo.'],
     pal: { o: '#0a0a0a', N: '#22252b', R: '#d62828', s: '#e0ac69' },
     eyes: [[3, 5], [6, 5]], eyeC: '#111111', hand: '#22252b',
   },
   {
-    id: 'clown', name: 'PALHAÇO', desc: 'O circo pegou fogo e ele pulou na cachoeira.', price: 1000,
+    id: 'clown', name: 'PALHAÇO', desc: 'O circo pegou fogo e ele pulou na cachoeira.', price: 55,
     rows: ['.GGBBYYRR.', 'GGBBYYRRGG', 'GBoWWWWoRY', 'BoWWWWWWoR', 'BoWWWWWWoR', 'oWWbWWbWWo', 'oWWWWWWWWo', 'oWWWNNWWWo', 'oWRRRRRRWo', '.oWWWWWWo.'],
     pal: { G: '#3ddc5a', B: '#3d8fe0', Y: '#ffd23f', R: '#e8434f', o: '#2a2108', W: '#f8f4ec', b: '#3d8fe0', N: '#ff2a2a' },
     eyes: [[3, 6], [6, 6]], eyeC: '#1a1a1a', hand: '#f8f4ec',
   },
   {
-    id: 'viking', name: 'VIKING', desc: 'Já desceu fiordes piores que isso aqui.', price: 1200,
+    id: 'viking', name: 'VIKING', desc: 'Já desceu fiordes piores que isso aqui.', price: 70,
     rows: ['H........H', 'HH.oooo.HH', '.HoMMMMoH.', '.oMMLMMMo.', 'oMMMMMMMMo', 'oNNNNNNNNo', 'osssssssso', 'oOssssssOo', 'OOOOmmOOOO', '.OOOOOOOO.', '..O.OO.O..'],
     pal: { H: '#f3e6c8', o: '#22262c', M: '#9aa3ae', L: '#e6ebf0', N: '#5d6670', s: '#f1c27d', O: '#d9761c', m: '#7a1d1d' },
     eyes: [[3, 6], [6, 6]], eyeC: '#1a1a1a', hand: '#f1c27d',
   },
   {
-    id: 'robot', name: 'ROBÔ', desc: 'À prova d’água? O manual diz que sim.', price: 1500,
+    id: 'robot', name: 'ROBÔ', desc: 'À prova d’água? O manual diz que sim.', price: 90,
     rows: ['....RR....', '....kk....', 'oooooooooo', 'oLMMMMMMMo', 'oMMMMMMMMo', 'oMDDDDDDMo', 'oMDDDDDDMo', 'oMMMMMMMMo', 'oMkMkMkMMo', 'oMMMMMMMMo', 'oooooooooo'],
     pal: { R: '#ff3b3b', k: '#2b3038', o: '#1b1f26', L: '#e6ebf0', M: '#9aa3ae', D: '#1b2a33' },
     eyes: [[3, 6], [6, 6]], eyeC: '#3df2ff', hand: '#9aa3ae',
   },
   {
-    id: 'astro', name: 'ASTRONAUTA', desc: 'Errou a órbita e caiu bem nas cataratas.', price: 2000,
+    id: 'astro', name: 'ASTRONAUTA', desc: 'Errou a órbita e caiu bem nas cataratas.', price: 110,
     rows: ['...oooo...', '..oWWWWo..', '.oWWWWWWo.', 'oWWWWWWWWo', 'oWVVVVVVWo', 'oWVLVVVVWo', 'oWVVVVVVWo', 'oWWWWWWWWo', 'oGWWWWWWRo'],
     pal: { o: '#2b3340', W: '#eef2f6', V: '#1b2a4a', L: '#9fd8ff', G: '#3dff6e', R: '#ff3b3b' },
     eyes: [[3, 6], [6, 6]], eyeC: '#7fd3ff', hand: '#eef2f6',
   },
   {
-    id: 'dino', name: 'DINOSSAURO', desc: 'Sobreviveu ao meteoro. Agora quer emoção.', price: 2500,
+    id: 'dino', name: 'DINOSSAURO', desc: 'Sobreviveu ao meteoro. Agora quer emoção.', price: 130,
     rows: ['...S..S...', '..oSooSo..', '.oddddddo.', 'oddddddddo', 'odLddddddo', 'oddddddddo', 'oddddddddo', 'oddnddnddo', 'okkkkkkkko', '.oWdWdWdo.', '..oooooo..'],
     pal: { S: '#ff8a1c', o: '#163d12', d: '#4caf50', L: '#9be07a', n: '#163d12', k: '#3a0d0d', W: '#ffffff' },
     eyes: [[3, 5], [6, 5]], eyeC: '#111111', hand: '#4caf50',
   },
   {
-    id: 'et', name: 'ET', desc: 'Atravessou a galáxia só pra descer essa cachoeira.', price: 3000,
+    id: 'et', name: 'ET', desc: 'Atravessou a galáxia só pra descer essa cachoeira.', price: 160,
     rows: ['.a......a.', '..k....k..', '...oggo...', '..oggggo..', '.oggLgggo.', 'oggggggggo', 'oggggggggo', 'oggggggggo', '.oggmmggo.', '..oggggo..', '...oooo...'],
     pal: { a: '#c8ff8a', k: '#2f6b1f', o: '#1d3b12', g: '#7ed957', L: '#c8ff8a', m: '#2f6b1f' },
     eyes: [[2, 6], [3, 6], [6, 6], [7, 6], [3, 7], [6, 7]], eyeC: '#0a0a0a', hand: '#7ed957',
   },
   {
-    id: 'santa', name: 'PAPAI NOEL', desc: 'Trenó na oficina, veio de barril mesmo. Ho ho ho!', price: 5000,
+    id: 'santa', name: 'PAPAI NOEL', desc: 'Trenó na oficina, veio de barril mesmo. Ho ho ho!', price: 250,
     rows: ['.......WW.', '......rWW.', '....rrr...', '...rrrrr..', '..rrrrrrr.', '.WWWWWWWW.', '.WssssssW.', '.osssssso.', '.WssppssW.', 'WWWWWWWWWW', 'WWWWmmWWWW', '.WWWWWWWW.', '...WWWW...'],
     pal: { r: '#d62828', W: '#f4f4f4', s: '#f1c27d', o: '#2a2108', p: '#e8897a', m: '#7a1d1d' },
-    eyes: [[3, 7], [6, 7]], eyeC: '#1a1a1a', hand: '#f4f4f4',
+    eyes: [[3, 7], [6, 7]], eyeC: '#1a1a1a', hand: '#f4f4f4', trail: 'snow',
+  },
+  // ---- folklore & legends ----
+  {
+    id: 'witch', name: 'BRUXA', desc: 'Vassoura quebrou. Barril serve. Abracadabarril!', price: 60, monster: true,
+    rows: ['......o...', '.....oKo..', '....oKKo..', '....oKKKo.', '...oKKKKo.', '...oPPPPo.', 'KKKKKKKKKK', 'Hogggggggo', 'Hogggggggo', 'HogggGGggo', 'Hogggggggo', '.oggmmggo.', '..oooooo..'],
+    pal: { o: '#140b1c', K: '#2a1838', P: '#9b4dca', g: '#8fd16a', G: '#5e9e3e', m: '#3a0d0d', H: '#e8742a' },
+    eyes: [[3, 8], [6, 8]], eyeC: '#1a1a1a', hand: '#8fd16a', trail: 'magic',
+  },
+  {
+    id: 'unicorn', name: 'UNICÓRNIO', desc: 'Deixa um rastro de óleo arco-íris. Exclusivo, chique e poluente.', price: 300,
+    rows: ['....y.....', '....Yy....', '...yYY....', '.ooWWWWoR.', 'oWWWWWWWRO', 'oWWWWWWWOY', 'oWWWWWWWYG', 'oWWWWWWWGB', 'oWWWWWWWBo', '.oPWWWWPo.', '..oooooo..'],
+    pal: { o: '#4a3a5a', W: '#fbf7ff', Y: '#ffd23f', y: '#d9a514', R: '#ff4d6d', O: '#ff9f1c', G: '#3ddc5a', B: '#3d8fe0', P: '#ffb3c6' },
+    eyes: [[3, 5], [6, 5]], eyeC: '#3a1f5a', hand: '#fbf7ff', trail: 'rainbow',
+  },
+  {
+    id: 'vampire', name: 'VAMPIRO', desc: 'Só desce a cachoeira à noite. Protetor solar fator 1000.', price: 80, monster: true,
+    rows: ['..oooooo..', '.oHHHHHHo.', 'oHHHHHHHHo', 'oHssHHssHo', 'oHssssssHo', 'osssssssso', 'osssssssso', 'osskkkksso', 'CosWssWsoC', 'CC.oooo.CC'],
+    pal: { o: '#120d16', H: '#1b1422', s: '#e8e4f0', k: '#5a0d16', W: '#ffffff', C: '#b3122e' },
+    eyes: [[3, 5], [6, 5]], eyeC: '#d61f1f', hand: '#e8e4f0',
+  },
+  {
+    id: 'wolf', name: 'LOBISOMEM', desc: 'Sétimo filho, sexta-feira, lua cheia e um barril.', price: 90, monster: true,
+    rows: ['o........o', 'oFo....oFo', 'oFFooooFFo', 'oFFFFFFFFo', 'oFfFFFFfFo', 'oFFFFFFFFo', 'oFFFFFFFFo', 'oFFLLLLFFo', 'oFFLkkLFFo', 'oFWLLLLWFo', '.oooooooo.'],
+    pal: { o: '#1e1712', F: '#6b5a4a', f: '#4a3d31', L: '#a89482', k: '#111111', W: '#ffffff' },
+    eyes: [[3, 5], [6, 5]], eyeC: '#ffd23f', hand: '#6b5a4a',
+  },
+  {
+    id: 'zombie', name: 'ZUMBI', desc: 'Cééérebro... e cachoeira. Nessa ordem.', price: 50, monster: true,
+    rows: ['..o.oo.o..', '.oHoHHoHo.', 'oHHHHHHHHo', 'oHHPPHHHHo', 'ozzzzzzzzo', 'ozzzzzzzzo', 'ozkzzzzzzo', 'ozzzzzzzzo', 'ozWkWkWzzo', '.ozzSzzzo.', '..oooooo..'],
+    pal: { o: '#1a2216', H: '#3b2a1a', P: '#ff8fa8', z: '#8fae7a', k: '#4f6b45', W: '#e8e4c8', S: '#2a3324' },
+    eyes: [[3, 5], [6, 5]], eyeC: '#f0f0d0', hand: '#8fae7a',
+  },
+  {
+    id: 'yeti', name: 'ABOMINÁVEL', desc: 'Veio do Himalaia porque achou a água daqui quentinha.', price: 120,
+    rows: ['..W.WW.W..', '.WWWWWWWW.', 'WWWWWWWWWW', 'WWbbbbbbWW', 'WbbbbbbbbW', 'WbbbbbbbbW', 'WbbbbbbbbW', 'WbbkkkkbbW', 'WWbWbbWbWW', '.WWWWWWWW.', '..W.WW.W..'],
+    pal: { W: '#f4f8ff', b: '#7fa8d6', k: '#1b2a4a' },
+    eyes: [[3, 5], [6, 5]], eyeC: '#1a1a1a', hand: '#f4f8ff', trail: 'snow',
+  },
+  {
+    id: 'bigfoot', name: 'PÉ-GRANDE', desc: 'Calça 58. Por isso não usa prancha.', price: 100,
+    rows: ['..oooooo..', '.oBBBBBBo.', 'oBBbBBbBBo', 'oBBBBBBBBo', 'oBddddddBo', 'oBddddddBo', 'oBddNNddBo', 'oBddddddBo', 'oBBdmmdBBo', 'oBBBBBBBBo', '.oBBBBBBo.'],
+    pal: { o: '#1c120a', B: '#6b4423', b: '#8a5a30', d: '#3a2616', N: '#1c120a', m: '#140b06' },
+    eyes: [[3, 5], [6, 5]], eyeC: '#f6e7c8', hand: '#6b4423',
+  },
+  {
+    id: 'nessie', name: 'MONSTRO DO LAGO', desc: 'Saiu do lago pra conhecer as cataratas. Foto sempre sai borrada.', price: 150,
+    rows: ['..oooo....', '.oGGGGoo..', 'oGGGGGGGo.', 'oGGGGGGGGo', 'oGGmmmmGGo', '.oGGGGGGo.', '..oGGLo...', '..oGGLo...', '..oGGLo...', '..oGGLo...', '..oGGLo...', '.oGGGLLo..', 'oGGGGGLLo.', 'oGGGGGGLLo'],
+    pal: { o: '#123b22', G: '#3fa36a', L: '#9be0b0', m: '#123b22' },
+    eyes: [[3, 3], [6, 3]], eyeC: '#111111', hand: '#3fa36a',
+  },
+  {
+    id: 'skeleton', name: 'ESQUELETO', desc: 'Leve, arejado e sem medo de quebrar. Já quebrou tudo.', price: 70, monster: true,
+    rows: ['..oooooo..', '.oWWWWWWo.', 'oWWWWWWWWo', 'oWWWWWWWWo', 'oWkkWWkkWo', 'oWkkWWkkWo', 'oWWWkkWWWo', '.oWWWWWWo.', '.okWkWkWo.', '..oWWWWo..'],
+    pal: { o: '#2b2b33', W: '#f2efe6', k: '#1a1a1a' },
+    eyes: [[3, 5], [6, 5]], eyeC: '#ff3b3b', hand: '#f2efe6',
+  },
+  {
+    id: 'mummy', name: 'MÚMIA', desc: '3 mil anos enfaixada. Molhar as faixas? Primeira vez.', price: 75, monster: true,
+    rows: ['..oooooo..', '.oWwWWwWo.', 'oWWWwwWWWo', 'owWWWWWwWo', 'oWWwWWWWwo', 'okkkkkkkko', 'oWwWWWwWWo', 'oWWWwWWWwo', 'owWWWWwWWo', '.oWWwWWWo.', '..oooooo..'],
+    pal: { o: '#4a4030', W: '#efe6cc', w: '#c9bc96', k: '#1a1610' },
+    eyes: [[3, 5], [6, 5]], eyeC: '#ffd23f', hand: '#efe6cc',
+  },
+  {
+    id: 'creature', name: 'CRIATURA COSTURADA', desc: 'Feita de retalhos num laboratório. Os pontos aguentam água?', price: 85, monster: true,
+    rows: ['..oooooo..', '.oHHoHHHo.', 'oHHHHHHHHo', 'oaaaaabbbo', 'oSSSSSSSSo', 'oaaaabbbbo', 'oaaaabbbbo', 'oaaaaSbbbo', 'oaakkkkbbo', '.oaaabbbo.', '..oooooo..'],
+    pal: { o: '#151a14', H: '#1b1b1b', a: '#9bb08a', b: '#c9a08a', S: '#2a2a2a', k: '#3a0d0d' },
+    eyes: [[3, 6], [6, 6]], eyeC: '#1a1a1a', hand: '#9bb08a',
+  },
+  // ---- Brasil ----
+  {
+    id: 'caramelo', name: 'VIRA-LATA CARAMELO', desc: 'Patrimônio nacional. Devia estar na nota de 200.', price: 40,
+    rows: ['..oooooo..', '.oCCCCCCo.', 'oDCCCCCCDo', 'DDCCCCCCDD', 'DDCCCCCCDD', 'DDCCCCCCDD', 'DoCLLLLCoD', '.oLLkkLLo.', '.oLLLLLLo.', '..oLppLo..', '...oppo...'],
+    pal: { o: '#3a220c', C: '#d08a3c', D: '#9a5a1f', L: '#f3d2a2', k: '#1a1a1a', p: '#ff6f8a' },
+    eyes: [[3, 5], [6, 5]], eyeC: '#1a1a1a', hand: '#d08a3c',
+  },
+  {
+    id: 'lapwing', name: 'QUERO-QUERO DE TOPETE', desc: 'Grita "quero-quero" e quer mesmo: quer descer de novo.', price: 65,
+    rows: ['...RR.....', '..RRRR....', '..RRRRR...', '.oRRRRRRo.', 'oGGGGGGGGo', 'oGGGGGGGGo', 'oWWGGGGWWo', 'oGGGBBGGGo', 'oKKKBBKKKo', '.oKKKKKKo.', '..oooooo..'],
+    pal: { R: '#e8342a', o: '#1a1a1a', G: '#8e939c', W: '#ffffff', B: '#ff8a1c', K: '#202020' },
+    eyes: [[3, 5], [6, 5]], eyeC: '#e01e1e', hand: '#8e939c',
+  },
+  {
+    id: 'pony', name: 'CAVALINHO DA SELEÇÃO', desc: 'Relincha a cada gol e a cada pedra que desvia.', price: 95,
+    rows: ['..o....o..', '.oHo..oHo.', '.oHHooHHo.', 'oHHMMMMHHo', 'oHHHMHHHHo', 'oHHHHHHHHo', 'oHHHHHHHHo', 'oHLLLLLLHo', 'oHLkLLkLHo', 'YYGYYYYGYY', 'YYYYGGYYYY'],
+    pal: { o: '#2a1606', H: '#8a5a30', M: '#2a1606', L: '#c49a6c', k: '#2a1606', Y: '#ffd23f', G: '#1f9a46' },
+    eyes: [[3, 5], [6, 5]], eyeC: '#1a1a1a', hand: '#8a5a30', trail: 'brasil',
+  },
+  // ---- pop ----
+  {
+    id: 'castaway', name: 'NÁUFRAGO', desc: 'Ele e o Milson, sua bola de vôlei. Melhores amigos pra sempre.', price: 110, ox: 5,
+    rows: [
+      '..oooooo.......', '.oHHHHHHo......', 'oHHHHHHHHo.....', 'oHssssssHo.....', 'oHssssssHo.....', 'osssssssso.....',
+      'oBssssssBo.ooo.', 'oBBsmmsBBooWWWo', 'oBBBBBBBBooWRWo', '.oBBBBBBo.oWWWo', '..oBBBBo...ooo.',
+    ],
+    pal: { o: '#2a1606', H: '#6b4423', s: '#e0ac69', B: '#8a5a30', m: '#3a0d0d', W: '#f4f4ec', R: '#d62828' },
+    eyes: [[3, 5], [6, 5]], eyeC: '#1a1a1a', hand: '#e0ac69',
+  },
+  {
+    id: 'scientist', name: 'CIENTISTA MALUCO', desc: 'Calculou tudo: a chance de dar certo é de 0,003%. Bora!', price: 100,
+    rows: ['W.W..W.W.W', '.WWWWWWWW.', 'WWWWWWWWWW', 'WWssssssWW', 'WssssssssW', 'WoLLooLLoW', 'WssssssssW', 'WsssWWsssW', '.osssssso.', 'CCCCrrCCCC'],
+    pal: { W: '#f4f4f4', s: '#f1c27d', o: '#1a1a1a', L: '#bfe3ff', C: '#e8eef7', r: '#d62828' },
+    eyes: [[3, 5], [6, 5]], eyeC: '#1a1a1a', hand: '#f1c27d', trail: 'spark',
+  },
+  {
+    id: 'angel', name: 'ANJINHO', desc: 'Nunca encostou numa pedra. Nem pensa nisso.', price: null, ach: 'angel', ox: 7,
+    rows: ['...yyyyyyyy...', '..............', '....oooooo....', '...oCCCCCCo...', '..oCCcCCcCCo..', '..oCssssssCo..', 'WWossssssssoWW', 'WWWossssssoWWW', '.WWossmmssoWW.', '..W.oooooo.W..'],
+    pal: { y: '#ffe066', o: '#2a2108', C: '#ffd23f', c: '#e8b400', s: '#ffdbac', W: '#ffffff', m: '#d65a5a' },
+    eyes: [[5, 6], [8, 6]], eyeC: '#3a2a1a', hand: '#ffdbac', trail: 'holy',
+  },
+  {
+    id: 'devil', name: 'DEMÔNIO', desc: 'Tá com o capeta no corpo. Literalmente.', price: null, ach: 'm666',
+    rows: ['H........H', 'HH......HH', '.HooooooH.', 'oRRRRRRRRo', 'oRRRRRRRRo', 'okkRRRRkko', 'oRRRRRRRRo', 'oRRRRRRRRo', 'oRkWWWWkRo', '.oRRkkRRo.', '..oookoo..'],
+    pal: { H: '#f3e6c8', o: '#2a0606', R: '#d62828', k: '#2a0606', W: '#ffffff' },
+    eyes: [[3, 6], [6, 6]], eyeC: '#ffd23f', hand: '#d62828', trail: 'fire',
+  },
+  {
+    id: 'sponge', name: 'BUCHINHA', desc: 'Esponja-do-mar rosinha e redonda. Não tem nada a ver com ninguém.', price: null, ach: 'bubbles300',
+    rows: ['...oooo...', '.ooPPPPoo.', 'oPPpPPPPPo', 'oPPPPPpPPo', 'oPpPPPPPPo', 'oPPPPPPPPo', 'oPPPPPPpPo', 'oPpPmmPPPo', '.oPPPPPpo.', '..oooooo..'],
+    pal: { o: '#7a2a4a', P: '#ff8fb3', p: '#c95a85', m: '#7a2a4a' },
+    eyes: [[3, 5], [6, 5]], eyeC: '#1a1a1a', hand: '#ff8fb3', trail: 'bubbles',
+  },
+  // ---- holidays ----
+  {
+    id: 'bunny', name: 'COELHO DA PÁSCOA', desc: 'Escondeu os ovos e esqueceu onde. Tá procurando no rio.', price: 80,
+    rows: ['.oo....oo.', 'oWWo..oWWo', 'oWPo..oPWo', 'oWPo..oPWo', 'oWPo..oPWo', '.oWooooWo.', '.oWWWWWWo.', 'oWWWWWWWWo', 'oWWWWWWWWo', 'oPWWkkWWPo', 'oWWWmmWWWo', '.oWWWWWWo.', '..oooooo..'],
+    pal: { o: '#4a4a5a', W: '#fbfbff', P: '#ffb3c6', k: '#ff6f8a', m: '#4a4a5a' },
+    eyes: [[3, 8], [6, 8]], eyeC: '#1a1a1a', hand: '#fbfbff', trail: 'easter',
+  },
+  {
+    id: 'armadillo', name: 'TATU DO HANUKKAH', desc: 'Meio tatu, meio feriado. 100% casca grossa.', price: 90,
+    rows: ['..oooooo..', '.oAaAaAao.', 'oaAaAaAaAo', 'oAaAaAaAao', 'oTTTTTTTTo', 'oTTTTTTTTo', '.oTTTTTTo.', '..oTTTTo..', '...oppo...', 'BWBWBWBWBW', 'WBWBWBWBWB'],
+    pal: { o: '#2a2420', A: '#8a7a68', a: '#6a5c4e', T: '#c8a888', p: '#ff8fa8', B: '#2f6fd1', W: '#ffffff' },
+    eyes: [[3, 5], [6, 5]], eyeC: '#1a1a1a', hand: '#c8a888',
   },
 ];
+
+// Wake colours. The rider's trail wins over the barrel's (the unicorn's rainbow is rider-only).
+// "seq" trails cycle through the colours in order so they draw bands instead of confetti.
+const TRAILS = {
+  radio: { c: ['#9dff5c', '#62d93a', '#c8ff8a'], s: 2 },
+  oil: { c: ['#2b2b2b', '#4a3a5a', '#1a1a1a', '#3a5a4a'], s: 2 },
+  foam: { c: ['#fffbe8', '#ffffff', '#f3e6b3'] },
+  melon: { c: ['#ef4b5a', '#ef4b5a', '#1a1a1a'] },
+  duck: { c: ['#ffe98a', '#ffd23f'] },
+  steam: { c: ['#ffffff', '#e6ebf0'], s: 2 },
+  gold: { c: ['#fff3a0', '#ffd23f', '#ffffff'] },
+  rainbow: { c: ['#ff4d6d', '#ff9f1c', '#ffd23f', '#3ddc5a', '#3d8fe0', '#9b4dca'], s: 2, seq: true },
+  fire: { c: ['#ff3b1f', '#ff8a1c', '#ffd23f'], s: 2 },
+  holy: { c: ['#ffffff', '#fff3a0', '#ffe066'] },
+  magic: { c: ['#9b4dca', '#c58cf0', '#8fd16a'] },
+  snow: { c: ['#ffffff', '#e6f2ff'] },
+  spark: { c: ['#3df2ff', '#ffffff', '#ffd23f'] },
+  brasil: { c: ['#ffd23f', '#1f9a46', '#3d8fe0'], seq: true },
+  bubbles: { c: ['#ffb3c6', '#bfe3ff', '#ffffff'] },
+  easter: { c: ['#ffb3c6', '#bfe3ff', '#fff3a0', '#c8f7c5'] },
+};
+function trailColor(t) {
+  const tr = TRAILS[riderSkin.trail] || TRAILS[barrelSkin.trail];
+  if (!tr) return ['#7fbfff', 1];
+  const c = tr.seq ? tr.c[Math.floor(t * 14) % tr.c.length] : tr.c[Math.floor(Math.random() * tr.c.length)];
+  return [c, tr.s || 1];
+}
 
 function makeRiderSkin(skin, look) {
   const rows = skin.rows;
@@ -1139,15 +1357,37 @@ function makeRiderSkin(skin, look) {
   return paint(rows[0].length, rows.length, (i, j) => (eyes.has(`${i - look},${j}`) ? skin.eyeC : skin.pal[rows[j][i]] || null));
 }
 
-// Rider (head up, looking ahead) sitting in the barrel, drawn with its rim at rimY.
-function drawRiderInBarrel(c, cx, rimY, riderSpr, hand, barrel, lift) {
-  c.drawImage(riderSpr, cx - (riderSpr.width >> 1), rimY - lift - (riderSpr.height - 9));
+// Rider sitting in the barrel, drawn with the barrel's rim at rimY. skin.ox: column of the head's
+// centre when the sprite carries something beside it (the castaway's ball, the angel's wings).
+function drawRiderInBarrel(c, cx, rimY, riderSpr, skin, barrel, lift) {
+  c.drawImage(riderSpr, cx - (skin.ox ?? riderSpr.width >> 1), rimY - lift - (riderSpr.height - 9));
   c.drawImage(barrel, cx - (barrel.width >> 1), rimY);
   if (lift >= RIDER_HIGH - 1) {
-    c.fillStyle = hand; // hands gripping the rim
+    c.fillStyle = skin.hand; // hands gripping the rim
     c.fillRect(cx - 7, rimY - 1, 2, 2);
     c.fillRect(cx + 5, rimY - 1, 2, 2);
   }
+}
+
+// Coin bubble: light ring with a coin inside (gold variant: golden ring, worth more).
+function makeBubble(gold) {
+  const S = 13;
+  const c = S / 2;
+  return paint(S, S, (i, j) => {
+    const dx = i + 0.5 - c;
+    const dy = j + 0.5 - c;
+    const d = Math.hypot(dx, dy);
+    if (d > 6.3) return null;
+    if (d > 5.2) return gold ? '#ffe066' : '#bfe3ff';
+    if ((i === 3 && j === 3) || (i === 4 && j === 2) || (i === 2 && j === 4)) return '#ffffff';
+    const cd = Math.hypot(dx, dy + 0.2);
+    if (cd < 3.3) {
+      if (cd > 2.4) return '#a0520f';
+      if (i === 6 && j >= 5 && j <= 7) return '#d9a514';
+      return dx < 0 && dy < 0 ? '#fff3a0' : '#ffd23f';
+    }
+    return null;
+  });
 }
 
 // ===== game =====
@@ -1219,6 +1459,8 @@ const ui = {
   shopList: $('shopList'),
   shopBack: $('shopBack'),
   toast: $('toast'),
+  hudCoins: $('hudCoins'),
+  shopCoins: $('shopCoins'),
   howTo: $('howTo'),
   aee: $('aee'),
 };
@@ -1246,6 +1488,7 @@ sfx.setMusicEnabled(save.music);
 // ---------- sprites ----------
 // equipped skins (validated: an unknown or unowned id falls back to the classic one)
 const owns = (kind, skin) => skin.price === 0 || save.owned[`${kind}:${skin.id}`] === true;
+// exclusive skins (price null) are only given by an achievement (skin.ach)
 let barrelSkin = BARREL_SKINS[0];
 let riderSkin = RIDER_SKINS[0];
 let barrelSpr = null;
@@ -1266,6 +1509,8 @@ for (let r = 4; r <= 9; r++) rockSprs[r] = [0, 1, 2].map((v) => makeRock(r, r * 
 const wallPattern = ctx.createPattern(makeStoneTile(64, 1234), 'repeat');
 const waterTile = makeWaterTile(W + 16, 128, 99);
 const foamTile = makeFoamTile(W + 16, 160, 77);
+const bubbleSprs = [makeBubble(false), makeBubble(true)];
+const BUBBLE_R = 6;
 const FAN_SKINS = ['#f1c27d', '#8d5524', '#ffdbac', '#c68642', '#e0ac69'];
 const fanSprs = FAN_SKINS.map((s) => [makeFan(s, 0), makeFan(s, 1)]);
 // Crowd on a stone staircase: step 0 is against the screen edge and highest, each next step
@@ -1316,6 +1561,9 @@ const G = {
   prevBx: W / 2,
   vx: 0,
   rocks: [],
+  bubbles: [], // coin bubbles: { wy, x, v, gold, ph }
+  debris: [], // barrel pieces after a crash
+  flyer: null, // the rider thrown out of the barrel
   nextRowY: 0,
   curSpacing: 1e4,
   rowIndex: 0,
@@ -1407,6 +1655,11 @@ function spawnRow() {
     G.rocks.push({ wy, x, r, spr: rockSprs[r][0], passed: false });
   }
   if (testGaps) testGaps.push({ wy, left, right });
+  // coin bubbles float in the guaranteed gap, so they never force an impossible move
+  if (!teach && G.rng() < 0.42) {
+    const gold = G.rng() < 0.08;
+    G.bubbles.push({ wy: wy + (G.rng() * 2 - 1) * 4, x: g + (G.rng() * 2 - 1) * gapW * 0.18, v: gold ? 5 : 1, gold, ph: G.rng() * 6 });
+  }
   G.prevGap = g;
   G.rowIndex++;
   const nd = diff(wy + 80 - G.startCam);
@@ -1444,11 +1697,50 @@ const ACHIEVEMENTS = [
   { id: 'pause', icon: '||', tier: 1, name: 'PAUSA PRO CAFEZINHO', desc: 'Pause a descida. Ninguém é de ferro.' },
   { id: 'night', icon: '(o)', tier: 2, name: 'CORUJA DO RIO', desc: 'Jogue entre meia-noite e 5 da manhã. Vai dormir!' },
   { id: 'bad3', icon: '3:(', tier: 1, name: 'FASE RUIM', desc: '3 descidas seguidas abaixo de 50 m. Acontece com todo mundo.' },
+  { id: 'm50', icon: '50', tier: 1, name: 'AQUECIMENTO', desc: 'Desça 50 m. Alongou antes, né?' },
+  { id: 'm666', icon: '666', tier: 2, name: 'NÚMERO DA BESTA', desc: 'Passe dos 666 m. Libera o DEMÔNIO.', skin: 'r:devil' },
+  { id: 'm750', icon: '750', tier: 2, name: 'QUASE UM QUILÔMETRO', desc: 'Desça 750 m. Quase lá, quase lá...' },
+  { id: 'm5000', icon: '5K', tier: 4, name: 'NEM O GPS TE ACHA', desc: 'Desça 5000 m numa descida só. Isso é humanamente possível?' },
+  { id: 'coin1', icon: 'o', tier: 1, name: 'ESTOURA-BOLHA', desc: 'Estoure sua primeira bolha de moeda. Ploc!' },
+  { id: 'goldbub', icon: 'O', tier: 1, name: 'BOLHA DE OURO', desc: 'Pegue uma bolha dourada. Vale 5 moedas!' },
+  { id: 'coin20', icon: '20', tier: 2, name: 'MÃO DE VACA', desc: 'Pegue 20 moedas numa descida só.' },
+  { id: 'coin50', icon: '50$', tier: 3, name: 'BANCO CENTRAL', desc: 'Pegue 50 moedas numa descida só. Imprimindo dinheiro.' },
+  { id: 'coins500', icon: '500$', tier: 2, name: 'POUPANÇA', desc: 'Junte 500 moedas no total. Rende mais que a poupança.' },
+  { id: 'bubbles300', icon: 'ooo', tier: 3, name: 'PLOC PLOC PLOC', desc: 'Estoure 300 bolhas no total. Libera a BUCHINHA.', skin: 'r:sponge' },
+  { id: 'rich', icon: '$$', tier: 3, name: 'OSTENTAÇÃO', desc: 'Tenha 1000 moedas guardadas ao mesmo tempo.' },
+  { id: 'nocoin', icon: '0$', tier: 2, name: 'DESAPEGADO', desc: 'Chegue a 500 m sem pegar nenhuma moeda. Dinheiro não traz felicidade.' },
+  { id: 'angel', icon: '(+)', tier: 3, name: 'ANJO DA GUARDA', desc: 'Chegue a 500 m sem raspar em nenhuma pedra. Libera o ANJINHO.', skin: 'r:angel' },
+  { id: 'tight25', icon: '25', tier: 3, name: 'ALFAIATE', desc: 'Passe 25 vezes entre pedras coladinhas, somando todas as descidas.' },
+  { id: 'pingpong', icon: '<>', tier: 2, name: 'PINGUE-PONGUE', desc: 'Raspe em 3 pedras em menos de 2 segundos.' },
+  { id: 'zen10', icon: 'ZZZ', tier: 3, name: 'MONGE TIBETANO', desc: 'Fique 10 s sem inclinar o celular. Iluminação alcançada.' },
+  { id: 'wall5', icon: '||o', tier: 3, name: 'GRUDE', desc: 'Fique 5 s colado no paredão. Larga a parede!' },
+  { id: 'runs100', icon: '100x', tier: 3, name: 'CEMITÉRIO DE BARRIS', desc: '100 barris quebrados. O marceneiro comprou casa na praia.' },
+  { id: 'scream', icon: 'AAH', tier: 1, name: 'AAAAAHHH!', desc: 'Ouça o grito do piloto voando do barril. Clássico do cinema.' },
+  { id: 'dejavu', icon: '=', tier: 2, name: 'DÉJÀ VU', desc: 'Termine duas descidas seguidas com a mesma distância.' },
+  { id: 'empate', icon: 'REC=', tier: 3, name: 'EMPATE TÉCNICO', desc: 'Termine exatamente no seu recorde. Nem um metro a mais.' },
+  { id: 'skins5', icon: '5', tier: 2, name: 'FASHIONISTA', desc: 'Tenha 5 skins compradas na loja. Estilo é tudo.' },
+  { id: 'cold', icon: '*', tier: 2, name: 'FRIO DE RACHAR', desc: 'Desça 100 m com o ABOMINÁVEL dentro da GELADEIRA.' },
+  { id: 'horror', icon: '!?', tier: 2, name: 'NOITE DE TERROR', desc: 'Chegue a 300 m com um monstro: bruxa, vampiro, zumbi e cia.' },
+  { id: 'milson', icon: 'MIL', tier: 1, name: 'MILSOOOON!', desc: 'Quebre o barril com o NÁUFRAGO. Alguém salva a bola!' },
+  { id: 'rainbow', icon: '~~~', tier: 2, name: 'ÓLEO ARCO-ÍRIS', desc: 'Chegue a 500 m com o UNICÓRNIO. O IBAMA já foi avisado.' },
+  { id: 'nessie', icon: 'S', tier: 2, name: 'FINALMENTE FOTOGRAFADO', desc: 'Chegue a 200 m com o MONSTRO DO LAGO. A foto saiu borrada.' },
+  { id: 'eureka', icon: 'E!', tier: 3, name: 'EUREKA!', desc: 'Chegue a 1000 m com o CIENTISTA MALUCO. A ciência venceu.' },
+  { id: 'caramelo', icon: 'AU', tier: 1, name: 'PATRIMÔNIO NACIONAL', desc: 'Desça com o VIRA-LATA CARAMELO. Ele merece.' },
+  { id: 'holiday', icon: 'FER', tier: 3, name: 'FERIADÃO', desc: 'Tenha o PAPAI NOEL, o COELHO DA PÁSCOA e o TATU DO HANUKKAH.' },
+  { id: 'sextou', icon: 'SEX', tier: 1, name: 'SEXTOU!', desc: 'Jogue numa sexta-feira. O fim de semana começa no barril.' },
   { id: 'shop1', icon: '$', tier: 1, name: 'CONSUMISTA', desc: 'Compre a primeira skin. O capitalismo agradece.' },
   { id: 'shopall', icon: '$$$', tier: 4, name: 'GUARDA-ROUPA COMPLETO', desc: 'Tenha todas as skins de barril e de piloto. Todas mesmo.' },
-  { id: 'all', icon: '***', tier: 4, name: 'PLATINOU', desc: 'Libere todas as outras conquistas. Agora vai lá fora pegar um sol.' },
+  { id: 'all', icon: '***', tier: 4, name: 'PLATINOU', desc: 'Libere todas as outras conquistas. Agora vai lá fora pegar um sol.', reward: 300 },
 ];
-const DIST_ACH = [[100, 'm100'], [300, 'm300'], [500, 'm500'], [1000, 'm1000'], [2000, 'm2000'], [3000, 'm3000']];
+// Every achievement pays coins by tier; some also give an exclusive skin (a.skin).
+const TIER_REWARD = [0, 10, 25, 50, 100];
+const achReward = (a) => a.reward ?? TIER_REWARD[a.tier];
+const skinByKey = (key) => (key[0] === 'b' ? BARREL_SKINS : RIDER_SKINS).find((k) => k.id === key.slice(2));
+const MONSTERS = new Set(RIDER_SKINS.filter((k) => k.monster).map((k) => k.id));
+const DIST_ACH = [
+  [50, 'm50'], [100, 'm100'], [300, 'm300'], [500, 'm500'], [666, 'm666'], [750, 'm750'],
+  [1000, 'm1000'], [2000, 'm2000'], [3000, 'm3000'], [5000, 'm5000'],
+];
 const TIGHT_GAP = 2 * HIT_R + 12; // free space between two rock hitboxes that counts as "só passou o barril"
 const ZEN_SECS = 5;
 const WALL_SECS = 2;
@@ -1461,18 +1753,43 @@ function achUnlocked() {
   return ACHIEVEMENTS.filter((a) => save.ach[a.id]).length;
 }
 
+// Pays an unlocked achievement's reward once (also used at boot for badges earned before
+// rewards existed).
+function grant(a) {
+  if (save.paid[a.id]) return;
+  save.paid[a.id] = true;
+  save.coins += achReward(a);
+  if (a.skin) save.owned[a.skin] = true;
+}
+
 function unlock(id) {
   if (save.ach[id]) return;
   const a = ACHIEVEMENTS.find((x) => x.id === id);
   if (!a) return;
   save.ach[id] = true;
+  grant(a);
   unseenAch.add(id);
   G.run.newAch.push(id);
   writeSave(save);
   toastQueue.push(a);
   if (!toastTimer) nextToast();
   refreshAchCount();
+  checkWallet();
+  if (a.skin) checkOwned();
   if (id !== 'all' && ACHIEVEMENTS.every((x) => x.id === 'all' || save.ach[x.id])) unlock('all');
+}
+
+function checkWallet() {
+  if (save.coins >= 1000) unlock('rich');
+}
+
+function checkOwned() {
+  const has = (key) => owns(key[0], skinByKey(key));
+  const bought = Object.keys(save.owned).filter((k) => save.owned[k] && skinByKey(k) && skinByKey(k).price > 0).length;
+  if (bought >= 1) unlock('shop1');
+  if (bought >= 5) unlock('skins5');
+  if (has('r:santa') && has('r:bunny') && has('r:armadillo')) unlock('holiday');
+  if (BARREL_SKINS.every((k) => owns('b', k)) && RIDER_SKINS.every((k) => owns('r', k))) unlock('shopall');
 }
 
 function nextToast() {
@@ -1482,7 +1799,8 @@ function nextToast() {
     show(ui.toast, false);
     return;
   }
-  ui.toast.innerHTML = `<b>CONQUISTA LIBERADA!</b>${a.name}`;
+  const extra = a.skin ? ` + ${skinByKey(a.skin).name}` : '';
+  ui.toast.innerHTML = `<b>CONQUISTA LIBERADA!</b>${a.name}<i>+${achReward(a)} MOEDAS${extra}</i>`;
   show(ui.toast, false);
   void ui.toast.offsetWidth; // restart the CSS animation
   show(ui.toast, true);
@@ -1492,6 +1810,7 @@ function nextToast() {
 
 function refreshAchCount() {
   ui.achCount.textContent = `${achUnlocked()}/${ACHIEVEMENTS.length}`;
+  ui.shopCoins.textContent = save.coins;
 }
 
 function renderAch() {
@@ -1514,7 +1833,10 @@ function renderAch() {
     const desc = document.createElement('p');
     desc.className = 'desc';
     desc.textContent = a.desc;
-    txt.append(name, desc);
+    const reward = document.createElement('p');
+    reward.className = 'reward';
+    reward.textContent = `+${achReward(a)} MOEDAS${a.skin ? ` + ${skinByKey(a.skin).name}` : ''}`;
+    txt.append(name, desc, reward);
     li.append(medal, txt);
     ui.achList.append(li);
   }
@@ -1536,7 +1858,7 @@ function closeAch() {
 }
 
 function newRunStats() {
-  return { grazes: 0, tight: 0, zenT: 0, wallT: 0, newAch: [] };
+  return { grazes: 0, grazeT: [], tight: 0, zenT: 0, wallT: 0, coins: 0, bubbles: 0, newAch: [] };
 }
 
 // Called when a rock scrolls past the barrel: was the barrel squeezed between this rock and a
@@ -1555,8 +1877,10 @@ function checkTight(r) {
   if (free >= TIGHT_GAP) return;
   L.tight = R.tight = true;
   G.run.tight++;
+  save.tightTotal++;
   unlock('tight');
   if (G.run.tight >= 5) unlock('tight5');
+  if (save.tightTotal >= 25) unlock('tight25');
 }
 
 function achOnGraze() {
@@ -1565,32 +1889,62 @@ function achOnGraze() {
   unlock('graze1');
   if (G.run.grazes >= 10) unlock('graze10');
   if (save.grazes >= 100) unlock('graze100');
+  const ts = G.run.grazeT;
+  ts.push(G.playT);
+  if (ts.length > 3) ts.shift();
+  if (ts.length === 3 && ts[2] - ts[0] <= 2) unlock('pingpong');
+}
+
+function achOnBubble(b) {
+  unlock('coin1');
+  if (b.gold) unlock('goldbub');
+  if (G.run.coins >= 20) unlock('coin20');
+  if (G.run.coins >= 50) unlock('coin50');
+  if (save.coinsTotal >= 500) unlock('coins500');
+  if (save.bubbles >= 300) unlock('bubbles300');
+  checkWallet();
 }
 
 function achOnMeters(m) {
   for (const [d, id] of DIST_ACH) if (m >= d) unlock(id);
   if (m >= 300 && !save.sound) unlock('mute');
   if (m >= 500 && save.sens === 2) unlock('hard');
+  if (m >= 500 && G.run.coins === 0) unlock('nocoin');
+  if (m >= 500 && G.run.grazes === 0) unlock('angel');
+  const r = riderSkin.id;
+  if (m >= 100 && r === 'yeti' && barrelSkin.id === 'fridge') unlock('cold');
+  if (m >= 300 && MONSTERS.has(r)) unlock('horror');
+  if (m >= 200 && r === 'nessie') unlock('nessie');
+  if (m >= 500 && r === 'unicorn') unlock('rainbow');
+  if (m >= 1000 && r === 'scientist') unlock('eureka');
 }
 
 function achOnStep(dt, steer, by) {
   if (!G.landed) return;
   G.run.zenT = Math.abs(steer) < 0.05 ? G.run.zenT + dt : 0;
   if (G.run.zenT >= ZEN_SECS) unlock('zen');
+  if (G.run.zenT >= 10) unlock('zen10');
   const margin = Math.min(G.bx - wallL(by), wallR(by) - G.bx) - HIT_R;
   G.run.wallT = margin < WALL_NEAR ? G.run.wallT + dt : 0;
   if (G.run.wallT >= WALL_SECS) unlock('wall');
+  if (G.run.wallT >= 5) unlock('wall5');
 }
 
 function achOnDeath(m) {
   unlock('die1');
   if (m < 30) unlock('early');
   if (save.best >= 50 && m < save.best && save.best - m <= 10) unlock('trave');
+  if (save.best >= 50 && m === save.best) unlock('empate');
+  if (m > 0 && m === save.lastM) unlock('dejavu');
+  save.lastM = m;
+  if (save.sound) unlock('scream');
+  if (riderSkin.id === 'castaway') unlock('milson');
   save.runs++;
   save.totalM += m;
   save.badStreak = m < 50 ? save.badStreak + 1 : 0;
   if (save.runs >= 10) unlock('runs10');
   if (save.runs >= 50) unlock('runs50');
+  if (save.runs >= 100) unlock('runs100');
   if (save.totalM >= 5000) unlock('km5');
   if (save.totalM >= 20000) unlock('km20');
   if (save.badStreak >= 3) unlock('bad3');
@@ -1598,7 +1952,8 @@ function achOnDeath(m) {
 }
 
 // ---------- shop ----------
-const wallet = () => Math.max(0, save.totalM - save.spent);
+const wallet = () => save.coins;
+const COIN_ICON = '<i class="coin" aria-hidden="true"></i>';
 const shop = { tab: 'b', sel: 'classic', from: null };
 const shopSkins = () => (shop.tab === 'b' ? BARREL_SKINS : RIDER_SKINS);
 const equippedId = () => (shop.tab === 'b' ? save.barrel : save.rider);
@@ -1614,7 +1969,7 @@ function drawShopPreview() {
   pctx.fillRect(0, 0, W2, H2);
   pctx.fillStyle = '#3e88d6';
   for (let x = 1; x < W2; x += 4) pctx.fillRect(x, (x * 7) % H2, 1, 5);
-  drawRiderInBarrel(pctx, W2 >> 1, H2 - BARREL_H - 1, makeRiderSkin(r, 0), r.hand, b.make(), RIDER_HIGH);
+  drawRiderInBarrel(pctx, W2 >> 1, H2 - BARREL_H - 1, makeRiderSkin(r, 0), r, b.make(), RIDER_HIGH);
 }
 
 function refreshShop() {
@@ -1626,17 +1981,22 @@ function refreshShop() {
   const skin = shopSkins().find((k) => k.id === shop.sel);
   const have = owns(shop.tab, skin);
   const using = equippedId() === skin.id;
+  const exclusive = skin.price === null;
+  const viaAch = exclusive ? ACHIEVEMENTS.find((a) => a.id === skin.ach) : null;
   ui.shopName.textContent = skin.name;
-  ui.shopDesc.textContent = skin.desc;
+  ui.shopDesc.textContent = !have && viaAch ? `${skin.desc} Libera com a conquista ${viaAch.name}.` : skin.desc;
   const btn = ui.shopAction;
   btn.classList.remove('wait', 'using');
   if (using) {
     btn.textContent = 'EM USO';
     btn.classList.add('using');
   } else if (have) btn.textContent = 'USAR';
-  else if (wallet() >= skin.price) btn.textContent = `COMPRAR: ${skin.price} m`;
+  else if (exclusive) {
+    btn.textContent = 'EXCLUSIVO DE CONQUISTA';
+    btn.classList.add('wait');
+  } else if (wallet() >= skin.price) btn.innerHTML = `COMPRAR: ${COIN_ICON}${skin.price}`;
   else {
-    btn.textContent = `FALTAM ${skin.price - wallet()} m`;
+    btn.innerHTML = `FALTAM ${COIN_ICON}${skin.price - wallet()}`;
     btn.classList.add('wait');
   }
   drawShopPreview();
@@ -1650,11 +2010,15 @@ function refreshShop() {
     const eq = equippedId() === k.id;
     b.className = `item${mine ? '' : ' locked'}${eq ? ' equipped' : ''}${k.id === shop.sel ? ' sel' : ''}`;
     b.dataset.id = k.id;
-    b.setAttribute('aria-label', `${k.name}${mine ? '' : `, ${k.price} metros`}${eq ? ', em uso' : ''}`);
+    const priceTxt = k.price === null ? ', exclusivo de conquista' : `, ${k.price} moedas`;
+    b.setAttribute('aria-label', `${k.name}${mine ? '' : priceTxt}${eq ? ', em uso' : ''}`);
     const cv = shop.tab === 'b' ? k.make() : makeRiderSkin(k, 0);
     cv.setAttribute('aria-hidden', 'true');
     const label = document.createElement('span');
-    label.textContent = eq ? 'EM USO' : mine ? 'SUA' : `${k.price} m`;
+    if (eq) label.textContent = 'EM USO';
+    else if (mine) label.textContent = 'SUA';
+    else if (k.price === null) label.textContent = 'TROFÉU';
+    else label.innerHTML = `${COIN_ICON}${k.price}`;
     b.append(cv, label);
     li.append(b);
     ui.shopList.append(li);
@@ -1685,21 +2049,20 @@ function shopAct() {
   const skin = shopSkins().find((k) => k.id === shop.sel);
   if (equippedId() === skin.id) return;
   if (!owns(shop.tab, skin)) {
-    if (wallet() < skin.price) {
+    if (skin.price === null || wallet() < skin.price) {
       sfx.blip([220, 180], 0.08, 0.05);
       return;
     }
-    save.spent += skin.price;
+    save.coins -= skin.price;
     save.owned[`${shop.tab}:${skin.id}`] = true;
     sfx.blip([523, 659, 784, 1047, 1319], 0.06, 0.06);
-    unlock('shop1');
-    const all = BARREL_SKINS.every((k) => owns('b', k)) && RIDER_SKINS.every((k) => owns('r', k));
-    if (all) unlock('shopall');
+    checkOwned();
   } else sfx.blip([880, 1175], 0.05, 0.05);
   if (shop.tab === 'b') save.barrel = skin.id;
   else save.rider = skin.id;
   applySkins();
   writeSave(save);
+  refreshAchCount();
   refreshShop();
 }
 
@@ -1717,6 +2080,9 @@ function resetRun() {
   G.rowIndex = 0;
   G.prevGap = W / 2;
   G.rocks.length = 0;
+  G.bubbles.length = 0;
+  G.debris.length = 0;
+  G.flyer = null;
   if (testGaps) testGaps.length = 0;
   G.bx = G.prevBx = W / 2;
   G.vx = 0;
@@ -1757,8 +2123,11 @@ function start() {
   sfx.startMusic();
   sfx.splash();
   requestWakeLock();
-  const hour = new Date().getHours();
-  if (hour < 5) unlock('night');
+  const now = new Date();
+  if (now.getHours() < 5) unlock('night');
+  if (now.getDay() === 5) unlock('sextou');
+  if (riderSkin.id === 'caramelo') unlock('caramelo');
+  ui.hudCoins.textContent = '0';
   setTimeout(() => {
     if (G.state === 'playing' && !input.hasSensor && !pcMode && !tapMode) showHint('SENSOR DE MOVIMENTO<br>NÃO ENCONTRADO');
   }, 1200);
@@ -1779,12 +2148,14 @@ function die() {
   G.flash = reducedMotion ? 0 : 0.07; // single flash, well under 3/s
   achOnDeath(G.meters);
   sfx.crash();
+  sfx.scream();
   sfx.stopWater(0.35);
   sfx.stopMusic();
-  sfx.lose();
+  sfx.lose(1.15);
   endCheer();
   if (navigator.vibrate) navigator.vibrate([70, 40, 120]);
   const by = G.cam + curBY;
+  breakBarrel(by);
   for (let k = 0; k < 18; k++) {
     const a = Math.random() * Math.PI * 2;
     const v = 40 + Math.random() * 70;
@@ -1802,6 +2173,46 @@ function die() {
   show(ui.hint, false);
 }
 
+// The barrel splits into a 3x2 grid of pieces that tumble off, and the rider is thrown upwards.
+function breakBarrel(by) {
+  G.debris.length = 0;
+  const xs = [0, 7, 13, BARREL_W];
+  const ys = [0, 12, BARREL_H];
+  for (let r = 0; r < 2; r++) {
+    for (let c = 0; c < 3; c++) {
+      const sw = xs[c + 1] - xs[c];
+      const sh = ys[r + 1] - ys[r];
+      const ox = xs[c] + sw / 2 - BARREL_W / 2;
+      const oy = ys[r] + sh / 2 - BARREL_H / 2;
+      G.debris.push({
+        sx: xs[c], sy: ys[r], sw, sh,
+        x: G.bx + ox, y: by + oy,
+        vx: ox * 9 + (Math.random() * 2 - 1) * 25, vy: -50 - Math.random() * 70 + oy * 4,
+        rot: 0, vr: (Math.random() * 2 - 1) * 9,
+      });
+    }
+  }
+  G.flyer = { x: G.bx, y: by - 12, vx: (Math.random() * 2 - 1) * 35, vy: -170, rot: 0, vr: (Math.random() < 0.5 ? -1 : 1) * (5 + Math.random() * 4) };
+}
+
+function updateDebris(dt) {
+  for (const p of G.debris) {
+    p.vy += 320 * dt;
+    p.x += p.vx * dt;
+    p.y += p.vy * dt;
+    p.rot += p.vr * dt;
+  }
+  const f = G.flyer;
+  if (f) {
+    f.vy += 300 * dt;
+    f.x += f.vx * dt;
+    f.y += f.vy * dt;
+    f.rot += f.vr * dt;
+    if (f.y - G.cam > H + 40) G.flyer = null;
+  }
+  if (G.debris.length && G.debris.every((p) => p.y - G.cam > H + 30)) G.debris.length = 0;
+}
+
 function gameOver() {
   G.state = 'over';
   const m = G.meters;
@@ -1817,7 +2228,8 @@ function gameOver() {
   const got = G.run.newAch.length;
   ui.overAch.textContent = got === 1 ? '+1 CONQUISTA NOVA!' : `+${got} CONQUISTAS NOVAS!`;
   show(ui.overAch, got > 0);
-  ui.overCoins.textContent = `+${m} m NO COFRE · SALDO ${wallet()} m`;
+  ui.overCoins.innerHTML = `+${COIN_ICON}${G.run.coins} NESTA DESCIDA · SALDO ${COIN_ICON}${save.coins}`;
+  refreshAchCount();
   show(ui.hud, false);
   show(ui.over, true);
   G.lockUntil = performance.now() + 650; // avoid restarting with a stray tap
@@ -2004,6 +2416,23 @@ function step(dt) {
     }
     G.rocks.length = w;
 
+    // coin bubbles: despawn behind, pop when the barrel touches them
+    let wb = 0;
+    for (let k = 0; k < G.bubbles.length; k++) {
+      const b = G.bubbles[k];
+      if (b.wy < G.cam - 24) continue;
+      const bx = b.x + Math.sin(G.t * 2 + b.ph) * 2;
+      const dx = bx - G.bx;
+      const dy = b.wy - by;
+      const rr = HIT_R + BUBBLE_R;
+      if (G.landed && dx * dx + dy * dy < rr * rr) {
+        collectBubble(b, bx);
+        continue;
+      }
+      G.bubbles[wb++] = b;
+    }
+    G.bubbles.length = wb;
+
     if (G.landed && collides(by)) {
       die();
       return;
@@ -2016,7 +2445,8 @@ function step(dt) {
       emit(G.bx + side * 9, by + 6, side * (15 + Math.random() * 30), G.speed - 20 - Math.random() * 30, 0.35, '#e6f5ff', 1, 0);
     }
     if (curBY > 0 && Math.random() < dt * 30) {
-      emit(G.bx + (Math.random() * 14 - 7), by - 12, 0, G.speed * 0.25, 0.5, barrelSkin.wake || '#7fbfff', 1, 0);
+      const [tc, ts] = trailColor(G.t);
+      emit(G.bx + (Math.random() * 14 - 7), by - 12, 0, G.speed * 0.25, 0.5, tc, ts, 0);
     }
 
     const m = Math.floor(dist / PX_PER_M);
@@ -2047,11 +2477,13 @@ function step(dt) {
       G.waterTimer = 0.5;
     }
   } else if (G.state === 'dying') {
+    updateDebris(dt);
     G.speed *= Math.exp(-5 * dt);
     G.cam += G.speed * dt;
     G.deathT += dt;
     if (G.deathT > 1.0) gameOver();
   } else if (G.state === 'over') {
+    updateDebris(dt);
     G.cam += 14 * dt;
   }
 
@@ -2088,6 +2520,21 @@ function collides(by) {
     if (dx * dx + dy * dy < rr * rr) return true;
   }
   return false;
+}
+
+function collectBubble(b, x) {
+  G.run.coins += b.v;
+  G.run.bubbles++;
+  save.coins += b.v;
+  save.coinsTotal += b.v;
+  save.bubbles++;
+  ui.hudCoins.textContent = G.run.coins;
+  sfx.coin(b.gold);
+  for (let k = 0; k < (b.gold ? 14 : 8); k++) {
+    const a = (k / (b.gold ? 14 : 8)) * Math.PI * 2;
+    emit(x, b.wy, Math.cos(a) * 45, Math.sin(a) * 45 + G.speed * 0.6, 0.35, k % 2 ? '#ffffff' : b.gold ? '#ffd23f' : '#bfe3ff', 1, 0);
+  }
+  achOnBubble(b);
 }
 
 function nearMiss(r) {
@@ -2145,6 +2592,32 @@ function render(alpha) {
     ctx.fillRect(x0 + 3 + f, y0 - 1 - f, s.width - 7, 1);
   }
 
+  // coin bubbles
+  for (const b of G.bubbles) {
+    const sy = Math.round(b.wy - cam + Math.sin(G.t * 3 + b.ph));
+    if (sy < -10 || sy > H + 10) continue;
+    const spr = bubbleSprs[b.gold ? 1 : 0];
+    ctx.drawImage(spr, Math.round(b.x + Math.sin(G.t * 2 + b.ph) * 2) - (spr.width >> 1), sy - (spr.height >> 1));
+  }
+
+  // crash: barrel pieces and the rider flying out
+  for (const p of G.debris) {
+    ctx.save();
+    ctx.translate(Math.round(p.x), Math.round(p.y - cam));
+    ctx.rotate(p.rot);
+    ctx.drawImage(barrelSpr, p.sx, p.sy, p.sw, p.sh, -p.sw / 2, -p.sh / 2, p.sw, p.sh);
+    ctx.restore();
+  }
+  if (G.flyer) {
+    const f = G.flyer;
+    const spr = riderSprs[0];
+    ctx.save();
+    ctx.translate(Math.round(f.x), Math.round(f.y - cam));
+    ctx.rotate(f.rot);
+    ctx.drawImage(spr, -(riderSkin.ox ?? spr.width >> 1), -(spr.height >> 1));
+    ctx.restore();
+  }
+
   // barrel
   if (G.state === 'playing' || G.state === 'paused') {
     const by = Math.round(curBY) + Math.round(Math.sin(G.t * 4));
@@ -2171,7 +2644,7 @@ function render(alpha) {
       if (a > e) look = [0, -1, 0, 1][Math.floor((a - e) / 0.3) % 4]; // glance around
     }
     const lift = Math.round(lerp(RIDER_LOW, RIDER_HIGH, clamp(up, 0, 1)));
-    drawRiderInBarrel(ctx, 0, -BARREL_H / 2, riderSprs[look], riderSkin.hand, barrelSpr, lift);
+    drawRiderInBarrel(ctx, 0, -BARREL_H / 2, riderSprs[look], riderSkin, barrelSpr, lift);
     ctx.restore();
     ctx.fillStyle = '#eaf7ff';
     const wob = flick & 1;
@@ -2403,6 +2876,13 @@ window.addEventListener('keydown', (e) => {
 
 ui.titleBest.textContent = save.best;
 G.run = newRunStats();
+// pay rewards for badges earned before achievements paid coins (and any skins they give)
+for (const a of ACHIEVEMENTS) if (save.ach[a.id]) grant(a);
+applySkins();
+checkOwned();
+checkWallet();
+writeSave(save);
+G.run = newRunStats(); // the boot checks above must not count as "new" for the first run
 refreshToggles();
 refreshAchCount();
 if (!playable) {
@@ -2434,10 +2914,12 @@ if (params.has('test')) {
     cheer: () => startCheer(),
     unlock: (id) => unlock(id),
     achievements: () => ({ ...save.ach }),
-    give: (m) => {
-      save.totalM += m;
+    give: (n) => {
+      save.coins += n;
       writeSave(save);
+      refreshAchCount();
     },
+    bubbles: () => G.bubbles.map((b) => ({ wy: b.wy, x: b.x, v: b.v })),
     save: () => JSON.parse(JSON.stringify(save)),
     rockList: () => G.rocks.map((r) => ({ wy: r.wy, x: r.x, r: r.r })),
     gaps: () => testGaps.filter((g) => g.wy > G.cam - 30),
