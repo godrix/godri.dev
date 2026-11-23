@@ -49,7 +49,7 @@ function defaults(reducedMotion) {
     // achievements: unlocked ids -> true, plus the lifetime stats some of them count
     ach: {}, runs: 0, totalM: 0, grazes: 0, badStreak: 0,
     // coins come from bubbles and achievement rewards; owned keys are "b:<id>" / "r:<id>"
-    coins: 0, coinsTotal: 0, bubbles: 0, tightTotal: 0, lastM: -1, paid: {},
+    coins: 0, coinsTotal: 0, bubbles: 0, tightTotal: 0, lastM: -1, paid: {}, powers: {},
     owned: {}, barrel: 'classic', rider: 'classic',
   };
 }
@@ -74,6 +74,9 @@ function migrate(obj, d) {
   if (typeof obj.rider === 'string') out.rider = obj.rider;
   for (const k of ['runs', 'totalM', 'grazes', 'badStreak', 'coins', 'coinsTotal', 'bubbles', 'tightTotal', 'lastM']) {
     if (Number.isFinite(obj[k]) && obj[k] >= 0) out[k] = Math.floor(obj[k]);
+  }
+  if (obj.powers && typeof obj.powers === 'object') {
+    for (const k of Object.keys(obj.powers)) if (obj.powers[k] === true) out.powers[k] = true;
   }
   if (obj.paid && typeof obj.paid === 'object') {
     for (const k of Object.keys(obj.paid)) if (obj.paid[k] === true) out.paid[k] = true;
@@ -1106,6 +1109,198 @@ function makeDuck() {
   });
 }
 
+// ---- vehicles that are not barrels at all ----
+// Red phone box (the blue one is for time travel).
+function makePhoneBox() {
+  const O = '#3a0505';
+  return paint(BARREL_W, BARREL_H, (i, j) => {
+    if (j === 0) return i >= 4 && i <= 15 ? O : null;
+    if (j === 1) return i >= 3 && i <= 16 ? (i === 3 || i === 16 ? O : '#c41e1e') : null;
+    if (j === 2) return i >= 1 && i <= 18 ? (i === 1 || i === 18 ? O : '#a51515') : null;
+    if (i < 2 || i > 17) return null;
+    if (i === 2 || i === 17 || j === 23) return O;
+    if ((j === 3 || j === 4) && i >= 4 && i <= 15) return j === 3 && i % 2 === 0 ? '#ffffff' : '#1a1a1a';
+    if (j >= 6 && j <= 19 && i >= 4 && i <= 15) {
+      if (i === 4 || i === 9 || i === 10 || i === 15 || j === 6 || j === 10 || j === 14 || j === 19) return '#a51515';
+      if (i === 5 || i === 11 || j === 7 || j === 11 || j === 15) return '#e6f5ff';
+      return '#8fc3ee';
+    }
+    if (i === 16 && j === 13) return '#ffd23f';
+    if (i === 3) return '#ff5252';
+    if (i === 16) return '#a51515';
+    return '#d62828';
+  });
+}
+
+// Brazilian street payphone shell ("orelhão") on its pole.
+function makeOrelhao() {
+  return paint(BARREL_W, BARREL_H, (i, j) => {
+    if (j >= 20) return i === 9 || i === 10 ? (i === 9 ? '#9aa3ae' : '#5d6670') : null;
+    const dx = (i + 0.5 - 10) / 9.6;
+    const dy = (j + 0.5 - 10.5) / 10.6;
+    const d = dx * dx + dy * dy;
+    if (d > 1) return null;
+    if (d > 0.8) return '#3a1a02';
+    const ix = (i + 0.5 - 10) / 6;
+    const iy = (j + 0.5 - 12.5) / 7;
+    if (ix * ix + iy * iy < 1) {
+      if (i >= 9 && i <= 11 && j >= 9 && j <= 14) {
+        if (j === 9) return '#1a1a1a';
+        return (i + j) % 2 ? '#c3cad4' : '#5d6670';
+      }
+      return '#7a3a06';
+    }
+    return dx < -0.3 && dy < 0 ? '#ffb35c' : dx > 0.45 ? '#c45f0a' : '#ff8a1c';
+  });
+}
+
+// Cardboard box with open flaps: the secret agent's favourite hiding spot.
+function makeCardboard() {
+  const O = '#5a3a10';
+  return paint(BARREL_W, BARREL_H, (i, j) => {
+    if (j <= 2) {
+      if (i >= 1 && i <= 8 && j >= 1) return j === 1 ? O : '#d9b070';
+      if (i >= 11 && i <= 18) return j === 0 ? O : '#b8894a';
+      return null;
+    }
+    if (i < 1 || i > 18) return null;
+    if (i === 1 || i === 18 || j === 3 || j === 23) return O;
+    if (i === 9 || i === 10) return '#e8d2a0';
+    if (j >= 12 && j <= 14 && i >= 3 && i <= 7) return j === 13 && i % 2 === 0 ? '#ffffff' : '#d62828';
+    if (i >= 15) return '#a87c40';
+    return '#c69a5a';
+  });
+}
+
+// Toilet: tank at the back, bowl in front, narrow base.
+function makeToilet() {
+  const O = '#4a5260';
+  return paint(BARREL_W, BARREL_H, (i, j) => {
+    if (j <= 7) {
+      if (i < 3 || i > 16) return null;
+      if (i === 3 || i === 16 || j === 0) return O;
+      if (j === 2 && (i === 13 || i === 14)) return '#9aa3ae';
+      return i >= 14 ? '#c9d1db' : j === 1 ? '#ffffff' : '#f4f6f8';
+    }
+    if (j <= 17) {
+      const dx = (i + 0.5 - 10) / 9.5;
+      const dy = (j + 0.5 - 12.5) / 5.2;
+      const d = dx * dx + dy * dy;
+      if (d > 1) return null;
+      if (d > 0.82) return O;
+      if (j === 8 || j === 9) return '#e6ebf0';
+      return dx > 0.5 ? '#c9d1db' : '#f4f6f8';
+    }
+    if (i < 6 || i > 13) return null;
+    if (i === 6 || i === 13 || j === 23) return O;
+    return i >= 12 ? '#c9d1db' : '#f4f6f8';
+  });
+}
+
+// Beach cooler: white styrofoam body, blue lid.
+function makeCooler() {
+  const O = '#22324a';
+  return paint(BARREL_W, BARREL_H, (i, j) => {
+    if (j <= 4) {
+      if (i < 1 || i > 18) return null;
+      if (i === 1 || i === 18 || j === 0 || j === 4) return O;
+      if (j === 1 && i >= 7 && i <= 12) return '#9aa3ae';
+      return j === 1 ? '#5a9ff0' : '#2f6fd1';
+    }
+    if (i < 2 || i > 17) return null;
+    if (i === 2 || i === 17 || j === 23) return O;
+    if ((i === 3 || i === 16) && (j === 9 || j === 10)) return '#5d6670';
+    if (j >= 13 && j <= 15 && i >= 6 && i <= 13) return j === 14 && i % 2 ? '#ffffff' : '#d62828';
+    if ((i * 5 + j * 3) % 7 === 0) return '#d8d8cc';
+    return i >= 15 ? '#d8d8cc' : '#f2f2ec';
+  });
+}
+
+// 20 L water jug standing up.
+function makeWaterJug() {
+  return drum((j) => (j <= 2 ? 3 : j <= 4 ? 6 : 9), 0, '#123a6b', '#a9d6ff', '#5aa2ee', '#2565b5', (i, j, rel, span, x0, x1) => {
+    if (j <= 1) return i === x0 || i === x1 ? '#123a6b' : '#f4f6f8';
+    if (i === x0 || i === x1 || j === BARREL_H - 1) return undefined;
+    if (j === 10 || j === 16 || j === 21) return '#3d8fe0';
+    if ((j === 13 || j === 14) && rel >= 3 && rel <= span - 3) return '#ffffff';
+    return undefined;
+  });
+}
+
+// Shopping cart: wire basket (see-through holes), red handle, wheels.
+function makeCart() {
+  const W2 = '#b5bec9';
+  return paint(BARREL_W, BARREL_H, (i, j) => {
+    if (j <= 1 && i >= 16) return '#d62828';
+    if (j <= 15) {
+      const x0 = 1 + Math.floor(j / 6);
+      const x1 = 18 - Math.floor(j / 6);
+      if (i < x0 || i > x1) return null;
+      if (i === x0 || i === x1 || j === 0 || j === 15) return '#5d6670';
+      return (i - x0) % 3 === 0 || j % 3 === 0 ? W2 : null;
+    }
+    if (j <= 19) return (i === 4 || i === 15 || j === 17) && i >= 3 && i <= 16 ? '#7d8794' : null;
+    if ((i >= 3 && i <= 5) || (i >= 14 && i <= 16)) return j === 20 || j === 23 ? '#1a1a1a' : i === 4 || i === 15 ? '#5d6670' : '#1a1a1a';
+    return null;
+  });
+}
+
+// Front-loading washing machine with a round porthole.
+function makeWasher() {
+  const O = '#4a5260';
+  return paint(BARREL_W, BARREL_H, (i, j) => {
+    if (i < 1 || i > 18) return null;
+    if ((i === 1 || i === 18) && (j === 0 || j === 23)) return null;
+    if (i === 1 || i === 18 || j === 0 || j === 23) return O;
+    if (j >= 1 && j <= 4) {
+      if (j === 4) return '#9aa3ae';
+      if (i >= 13 && i <= 15 && j >= 2 && j <= 3) return '#5d6670';
+      if (j === 2 && (i === 4 || i === 6)) return i === 4 ? '#3ddc5a' : '#ff3b3b';
+      return '#dde3ea';
+    }
+    const dx = i + 0.5 - 10;
+    const dy = j + 0.5 - 14;
+    const d = Math.hypot(dx, dy);
+    if (d < 7.2) {
+      if (d > 5.8) return '#9aa3ae';
+      if (d > 5) return '#5d6670';
+      const swirl = Math.sin(Math.atan2(dy, dx) * 2 + d * 0.9);
+      if ((i === 8 && j === 12) || (i === 12 && j === 16)) return '#ffffff';
+      return swirl > 0.3 ? '#a9d6ff' : '#3d8fe0';
+    }
+    return i >= 16 ? '#c9d1db' : '#f4f6f8';
+  });
+}
+
+// ---- power-up icons (9x9) ----
+const POWER_ICONS = {
+  shield: { rows: ['.SSSSSSS.', 'SSWWWWWSS', 'SWWWWWWWS', 'SWWWWWWWS', 'SWWWWWWWS', '.SWWWWWS.', '..SWWWS..', '...SWS...', '....S....'], pal: { S: '#3d8fe0', W: '#bfe3ff' } },
+  magnet: { rows: ['GG.....GG', 'GG.....GG', 'RR.....RR', 'RR.....RR', 'RR.....RR', 'RR.....RR', '.RR...RR.', '..RRRRR..', '...RRR...'], pal: { G: '#e6ebf0', R: '#e8342a' } },
+  slow: { rows: ['..ooooo..', '.oWWWWWo.', 'oWWWkWWWo', 'oWWWkWWWo', 'oWWWkkkWo', 'oWWWWWWWo', 'oWWWWWWWo', '.oWWWWWo.', '..ooooo..'], pal: { o: '#ffd23f', W: '#ffffff', k: '#1a1a1a' } },
+  mini: { rows: ['k.......k', '.k.....k.', '..BBBBB..', '..BbBbB..', '..BBBBB..', '..BbBbB..', '..BBBBB..', '.k.....k.', 'k.......k'], pal: { B: '#cf9a5c', b: '#6e4420', k: '#ffffff' } },
+  double: { rows: ['.........', 'Y...Y.YYY', '.Y.Y....Y', '..Y...YYY', '.Y.Y..Y..', 'Y...Y.YYY', '.........', '.ccccccc.', '.........'], pal: { Y: '#ffd23f', c: '#a0520f' } },
+  invert: { rows: ['......P..', '......PP.', 'PPPPPPPPP', '......PP.', '......P..', '..P......', '.PP......', 'PPPPPPPPP', '.PP......'], pal: { P: '#ff7ad9' } },
+  fog: { rows: ['.........', '...WWW...', '..WWWWW..', '.WWWWWWWW', 'WWWWWWWWW', 'WWWWWWWWW', '.WWWWWWW.', '.........', 'g.g.g.g.g'], pal: { W: '#e6ebf0', g: '#9aa3ae' } },
+  big: { rows: ['kk.....kk', 'k.......k', '..BBBBB..', '.BBbBbBB.', '.BBBBBBB.', '.BBbBbBB.', '..BBBBB..', 'k.......k', 'kk.....kk'], pal: { B: '#cf9a5c', b: '#6e4420', k: '#ff3b3b' } },
+};
+const makeIcon = (ic) => paint(9, 9, (i, j) => ic.pal[ic.rows[j][i]] || null);
+// Capsule around an icon: green ring for power-ups, red for power-downs.
+function makeCapsule(ic, good) {
+  const S = 15;
+  const icon = makeIcon(ic);
+  const c = paint(S, S, (i, j) => {
+    const dx = i + 0.5 - S / 2;
+    const dy = j + 0.5 - S / 2;
+    const d = Math.max(Math.abs(dx), Math.abs(dy)) * 0.6 + Math.hypot(dx, dy) * 0.4;
+    if (d > 7.3) return null;
+    if (d > 6.3) return '#0f1117';
+    if (d > 5.3) return good ? '#3ddc5a' : '#ff3b3b';
+    return good ? '#123b73' : '#3a0a1a';
+  });
+  c.getContext('2d').drawImage(icon, 3, 3);
+  return c;
+}
+
 const BARREL_SKINS = [
   { id: 'classic', name: 'BARRIL CLÁSSICO', desc: 'Madeira de lei com cheirinho de vinho velho.', price: 0, make: () => makeBarrel(WOOD) },
   { id: 'radio', name: 'BARRIL RADIOATIVO', desc: 'Brilha no escuro. Por favor, não lamba.', price: 30, make: makeRadioactive, trail: 'radio' },
@@ -1117,6 +1312,14 @@ const BARREL_SKINS = [
   { id: 'duck', name: 'PATINHO DE BORRACHA', desc: 'Quack. Só isso. Quack.', price: 120, make: makeDuck, trail: 'duck' },
   { id: 'fridge', name: 'GELADEIRA', desc: 'Tem um pote de sorvete lá dentro. É feijão.', price: 150, make: makeFridge },
   { id: 'cooker', name: 'PANELA DE PRESSÃO', desc: 'Psssssss! Feijão no ponto em 3 km.', price: 200, make: makePressureCooker, trail: 'steam' },
+  { id: 'box', name: 'CAIXA DE PAPELÃO', desc: 'Esconderijo perfeito de agente secreto. Ninguém desconfia.', price: 35, make: makeCardboard },
+  { id: 'jug', name: 'GALÃO DE ÁGUA', desc: '20 litros de água mineral e um passageiro clandestino.', price: 45, make: makeWaterJug },
+  { id: 'cooler', name: 'CAIXA DE ISOPOR', desc: 'Gelo, refri e um piloto. O kit praia completo.', price: 55, make: makeCooler, trail: 'snow' },
+  { id: 'toilet', name: 'PRIVADA', desc: 'Deu descarga e veio parar aqui. Não pergunte.', price: 70, make: makeToilet, trail: 'foam' },
+  { id: 'orelhao', name: 'ORELHÃO', desc: 'Liga a cobrar direto da cachoeira. Alô, mãe?', price: 90, make: makeOrelhao },
+  { id: 'cart', name: 'CARRINHO DE MERCADO', desc: 'Saiu do estacionamento e ninguém mais segurou.', price: 110, make: makeCart },
+  { id: 'washer', name: 'MÁQUINA DE LAVAR', desc: 'Centrifugação máxima: 1200 rpm de pura adrenalina.', price: 160, make: makeWasher, trail: 'bubbles' },
+  { id: 'phone', name: 'CABINE TELEFÔNICA', desc: 'Vermelha, porque a azul é pra viajar no tempo.', price: 180, make: makePhoneBox },
   { id: 'gold', name: 'BARRIL DE OURO', desc: 'Pura ostentação. Se afunda? Ninguém sabe.', price: 500, make: () => makeBarrel(GOLD), trail: 'gold' },
 ];
 
@@ -1510,6 +1713,23 @@ const wallPattern = ctx.createPattern(makeStoneTile(64, 1234), 'repeat');
 const waterTile = makeWaterTile(W + 16, 128, 99);
 const foamTile = makeFoamTile(W + 16, 160, 77);
 const bubbleSprs = [makeBubble(false), makeBubble(true)];
+// Power-ups (good) and power-downs (bad). dur 0 = lasts until used (the shield).
+const POWERS = [
+  { id: 'shield', name: 'ESCUDO!', good: true, dur: 0 },
+  { id: 'magnet', name: 'ÍMÃ!', good: true, dur: 8 },
+  { id: 'slow', name: 'CÂMERA LENTA!', good: true, dur: 6 },
+  { id: 'mini', name: 'MINI-BARRIL!', good: true, dur: 8 },
+  { id: 'double', name: 'MOEDA EM DOBRO!', good: true, dur: 10 },
+  { id: 'invert', name: 'TONTURA!', good: false, dur: 5 },
+  { id: 'fog', name: 'NEBLINA!', good: false, dur: 6 },
+  { id: 'big', name: 'BARRIL INCHADO!', good: false, dur: 6 },
+];
+const POWER_BY_ID = Object.fromEntries(POWERS.map((pw) => [pw.id, pw]));
+const capsuleSprs = Object.fromEntries(POWERS.map((pw) => [pw.id, makeCapsule(POWER_ICONS[pw.id], pw.good)]));
+const iconSprs = Object.fromEntries(POWERS.map((pw) => [pw.id, makeIcon(POWER_ICONS[pw.id])]));
+const PICKUP_R = 7;
+const SLOW_K = 0.6; // world speed while "câmera lenta" is on
+const MAGNET_R = 80;
 const BUBBLE_R = 6;
 const FAN_SKINS = ['#f1c27d', '#8d5524', '#ffdbac', '#c68642', '#e0ac69'];
 const fanSprs = FAN_SKINS.map((s) => [makeFan(s, 0), makeFan(s, 1)]);
@@ -1562,6 +1782,8 @@ const G = {
   vx: 0,
   rocks: [],
   bubbles: [], // coin bubbles: { wy, x, v, gold, ph }
+  pickups: [], // power-ups/downs: { wy, x, id, ph }
+  fx: {}, // active effects: id -> seconds left (shield: 1 while held; ghost: invulnerable after a save)
   debris: [], // barrel pieces after a crash
   flyer: null, // the rider thrown out of the barrel
   nextRowY: 0,
@@ -1655,8 +1877,19 @@ function spawnRow() {
     G.rocks.push({ wy, x, r, spr: rockSprs[r][0], passed: false });
   }
   if (testGaps) testGaps.push({ wy, left, right });
+  // power-ups/downs sit at one edge of the guaranteed gap, so the rest of the gap (at least
+  // gapW - 2 * PICKUP_R wide, more than the barrel) stays free: a bad one can always be dodged.
+  let pickup = false;
+  if (i >= 8 && G.rng() < 0.075) {
+    const bad = G.rng() < 0.38;
+    const pool = POWERS.filter((pw) => pw.good !== bad);
+    const pw = pool[Math.floor(G.rng() * pool.length)];
+    const side = G.rng() < 0.5 ? -1 : 1;
+    G.pickups.push({ wy, x: g + side * (gapW / 2 - PICKUP_R), id: pw.id, ph: G.rng() * 6 });
+    pickup = true;
+  }
   // coin bubbles float in the guaranteed gap, so they never force an impossible move
-  if (!teach && G.rng() < 0.42) {
+  if (!teach && !pickup && G.rng() < 0.42) {
     const gold = G.rng() < 0.08;
     G.bubbles.push({ wy: wy + (G.rng() * 2 - 1) * 4, x: g + (G.rng() * 2 - 1) * gapW * 0.18, v: gold ? 5 : 1, gold, ph: G.rng() * 6 });
   }
@@ -1728,6 +1961,10 @@ const ACHIEVEMENTS = [
   { id: 'caramelo', icon: 'AU', tier: 1, name: 'PATRIMÔNIO NACIONAL', desc: 'Desça com o VIRA-LATA CARAMELO. Ele merece.' },
   { id: 'holiday', icon: 'FER', tier: 3, name: 'FERIADÃO', desc: 'Tenha o PAPAI NOEL, o COELHO DA PÁSCOA e o TATU DO HANUKKAH.' },
   { id: 'sextou', icon: 'SEX', tier: 1, name: 'SEXTOU!', desc: 'Jogue numa sexta-feira. O fim de semana começa no barril.' },
+  { id: 'saved', icon: '[o]', tier: 1, name: 'SALVO PELO GONGO', desc: 'O escudo segurou uma batida por você. Agradeça a ele.' },
+  { id: 'powers', icon: 'POW', tier: 2, name: 'SUPERPODEROSO', desc: 'Pegue os 5 tipos de power-up, somando todas as descidas.' },
+  { id: 'cursed', icon: '13', tier: 2, name: 'PÉ-FRIO', desc: 'Pegue 3 power-downs numa descida só. Quebrou um espelho?' },
+  { id: 'collect', icon: 'TEL', tier: 2, name: 'LIGAÇÃO A COBRAR', desc: 'Chegue a 300 m com a CABINE TELEFÔNICA.' },
   { id: 'shop1', icon: '$', tier: 1, name: 'CONSUMISTA', desc: 'Compre a primeira skin. O capitalismo agradece.' },
   { id: 'shopall', icon: '$$$', tier: 4, name: 'GUARDA-ROUPA COMPLETO', desc: 'Tenha todas as skins de barril e de piloto. Todas mesmo.' },
   { id: 'all', icon: '***', tier: 4, name: 'PLATINOU', desc: 'Libere todas as outras conquistas. Agora vai lá fora pegar um sol.', reward: 300 },
@@ -1858,7 +2095,7 @@ function closeAch() {
 }
 
 function newRunStats() {
-  return { grazes: 0, grazeT: [], tight: 0, zenT: 0, wallT: 0, coins: 0, bubbles: 0, newAch: [] };
+  return { grazes: 0, grazeT: [], tight: 0, zenT: 0, wallT: 0, coins: 0, bubbles: 0, bad: 0, newAch: [] };
 }
 
 // Called when a rock scrolls past the barrel: was the barrel squeezed between this rock and a
@@ -1895,6 +2132,13 @@ function achOnGraze() {
   if (ts.length === 3 && ts[2] - ts[0] <= 2) unlock('pingpong');
 }
 
+function achOnPickup(pw) {
+  if (pw.good) {
+    save.powers[pw.id] = true;
+    if (POWERS.every((x) => !x.good || save.powers[x.id])) unlock('powers');
+  } else if (++G.run.bad >= 3) unlock('cursed');
+}
+
 function achOnBubble(b) {
   unlock('coin1');
   if (b.gold) unlock('goldbub');
@@ -1917,6 +2161,7 @@ function achOnMeters(m) {
   if (m >= 200 && r === 'nessie') unlock('nessie');
   if (m >= 500 && r === 'unicorn') unlock('rainbow');
   if (m >= 1000 && r === 'scientist') unlock('eureka');
+  if (m >= 300 && barrelSkin.id === 'phone') unlock('collect');
 }
 
 function achOnStep(dt, steer, by) {
@@ -2081,6 +2326,8 @@ function resetRun() {
   G.prevGap = W / 2;
   G.rocks.length = 0;
   G.bubbles.length = 0;
+  G.pickups.length = 0;
+  G.fx = {};
   G.debris.length = 0;
   G.flyer = null;
   if (testGaps) testGaps.length = 0;
@@ -2265,10 +2512,7 @@ function resume() {
 }
 
 function milestone(m) {
-  ui.pop.textContent = `${m} m!`;
-  ui.pop.classList.remove('show');
-  void ui.pop.offsetWidth; // restart the CSS animation
-  ui.pop.classList.add('show');
+  popText(`${m} m!`, '');
   if (m % CHEER_EVERY === 0) startCheer();
   else sfx.blip([660, 990], 0.07, 0.06);
 }
@@ -2381,11 +2625,12 @@ function step(dt) {
   } else if (G.state === 'playing') {
     const dist = G.cam - G.startCam;
     const d = diff(dist);
-    G.speed = speedFor(d);
+    G.speed = speedFor(d) * (G.fx.slow > 0 ? SLOW_K : 1);
     G.cam += G.speed * dt;
     G.playT += dt;
+    tickFx(dt);
 
-    const steer = input.getSteer(dt);
+    const steer = input.getSteer(dt) * (G.fx.invert > 0 ? -1 : 1);
     G.vx += (steer * MAX_VX - G.vx) * (1 - Math.exp(-14 * dt));
     G.bx += G.vx * dt;
 
@@ -2417,14 +2662,19 @@ function step(dt) {
     G.rocks.length = w;
 
     // coin bubbles: despawn behind, pop when the barrel touches them
+    const pull = 1 - Math.exp(-7 * dt);
     let wb = 0;
     for (let k = 0; k < G.bubbles.length; k++) {
       const b = G.bubbles[k];
       if (b.wy < G.cam - 24) continue;
+      if (G.fx.magnet > 0 && Math.hypot(b.x - G.bx, b.wy - by) < MAGNET_R) {
+        b.x += (G.bx - b.x) * pull;
+        b.wy += (by - b.wy) * pull;
+      }
       const bx = b.x + Math.sin(G.t * 2 + b.ph) * 2;
       const dx = bx - G.bx;
       const dy = b.wy - by;
-      const rr = HIT_R + BUBBLE_R;
+      const rr = HIT_R * barrelScale() + BUBBLE_R;
       if (G.landed && dx * dx + dy * dy < rr * rr) {
         collectBubble(b, bx);
         continue;
@@ -2433,9 +2683,30 @@ function step(dt) {
     }
     G.bubbles.length = wb;
 
-    if (G.landed && collides(by)) {
-      die();
-      return;
+    let wp = 0;
+    for (let k = 0; k < G.pickups.length; k++) {
+      const pk = G.pickups[k];
+      if (pk.wy < G.cam - 24) continue;
+      const rr = HIT_R * barrelScale() + PICKUP_R;
+      if (G.landed && Math.hypot(pk.x - G.bx, pk.wy - by) < rr) {
+        takePickup(pk, pk.x);
+        continue;
+      }
+      G.pickups[wp++] = pk;
+    }
+    G.pickups.length = wp;
+
+    if (G.landed && !(G.fx.ghost > 0)) {
+      const hit = hitTest(by);
+      if (hit && G.fx.shield) shieldSave(hit, by);
+      else if (hit) {
+        die();
+        return;
+      }
+    } else if (G.fx.ghost > 0) {
+      // invulnerable for a moment after the shield pops: keep the barrel off the walls
+      const hw = HIT_R * barrelScale();
+      G.bx = clamp(G.bx, wallL(by) + hw, wallR(by) - hw);
     }
     achOnStep(dt, steer, by);
 
@@ -2506,27 +2777,95 @@ function land() {
   curBY = barrelY;
 }
 
-function collides(by) {
+// Barrel size factor from the mini / inflated effects.
+function barrelScale() {
+  return G.fx.mini > 0 ? 0.6 : G.fx.big > 0 ? 1.35 : 1;
+}
+
+// What the barrel is hitting: 'wall', a rock object, or null.
+function hitTest(by) {
+  const k = barrelScale();
+  const R = HIT_R * k;
   // Walls: sample the barrel's top, middle and bottom (it's taller than wide).
   for (const dy of [-9, 0, 9]) {
-    const hw = (dy === 0 ? HIT_R : HIT_R * 0.75) - 1; // a graze is not a crash
-    const wy = by + dy;
-    if (G.bx - hw < wallL(wy) || G.bx + hw > wallR(wy)) return true;
+    const hw = (dy === 0 ? R : R * 0.75) - 1; // a graze is not a crash
+    const wy = by + dy * k;
+    if (G.bx - hw < wallL(wy) || G.bx + hw > wallR(wy)) return 'wall';
   }
   for (const r of G.rocks) {
     const dx = r.x - G.bx;
     const dy = r.wy - by;
-    const rr = r.r * 0.82 + HIT_R;
-    if (dx * dx + dy * dy < rr * rr) return true;
+    const rr = r.r * 0.82 + R;
+    if (dx * dx + dy * dy < rr * rr) return r;
   }
-  return false;
+  return null;
+}
+
+// ---------- power-ups ----------
+function tickFx(dt) {
+  for (const id of Object.keys(G.fx)) {
+    if (id === 'shield') continue;
+    G.fx[id] -= dt;
+    if (G.fx[id] <= 0) delete G.fx[id];
+  }
+}
+
+function takePickup(pk, x) {
+  const pw = POWER_BY_ID[pk.id];
+  // mini and inflated cancel each other out
+  if (pk.id === 'mini') delete G.fx.big;
+  if (pk.id === 'big') delete G.fx.mini;
+  G.fx[pk.id] = pw.dur || 1;
+  popText(pw.name, pw.good ? '' : 'bad');
+  if (pw.good) sfx.blip([523, 784, 1047, 1568], 0.05, 0.06);
+  else sfx.blip([392, 311, 233, 175], 0.07, 0.06);
+  for (let k = 0; k < 12; k++) {
+    const a = (k / 12) * Math.PI * 2;
+    emit(x, pk.wy, Math.cos(a) * 55, Math.sin(a) * 55 + G.speed * 0.5, 0.4, pw.good ? (k % 2 ? '#3ddc5a' : '#ffffff') : k % 2 ? '#ff3b3b' : '#ff7ad9', 1, 0);
+  }
+  achOnPickup(pw);
+}
+
+// The shield pops instead of the barrel: rocks in the way shatter, walls bounce you back.
+function shieldSave(hit, by) {
+  delete G.fx.shield;
+  G.fx.ghost = 1;
+  G.trauma = Math.min(1, G.trauma + 0.45);
+  sfx.splash();
+  sfx.blip([1568, 1047, 784], 0.05, 0.06);
+  if (hit === 'wall') {
+    G.bx += (W / 2 - G.bx) * 0.25;
+    G.vx = 0;
+  } else {
+    const R = HIT_R * barrelScale() + 6;
+    G.rocks = G.rocks.filter((r) => {
+      const near = Math.hypot(r.x - G.bx, r.wy - by) < r.r + R;
+      if (near) {
+        for (let k = 0; k < 8; k++) emit(r.x, r.wy, (Math.random() * 2 - 1) * 70, (Math.random() * 2 - 1) * 70, 0.6, k % 2 ? '#7c8393' : '#b7bfcc', 2, 150);
+      }
+      return !near;
+    });
+  }
+  for (let k = 0; k < 16; k++) {
+    const a = (k / 16) * Math.PI * 2;
+    emit(G.bx, by, Math.cos(a) * 80, Math.sin(a) * 80, 0.4, '#bfe3ff', 1, 0);
+  }
+  unlock('saved');
+}
+
+function popText(txt, cls) {
+  ui.pop.textContent = txt;
+  ui.pop.className = '';
+  void ui.pop.offsetWidth; // restart the CSS animation
+  ui.pop.className = `show ${cls}`.trim();
 }
 
 function collectBubble(b, x) {
-  G.run.coins += b.v;
+  const v = b.v * (G.fx.double > 0 ? 2 : 1);
+  G.run.coins += v;
   G.run.bubbles++;
-  save.coins += b.v;
-  save.coinsTotal += b.v;
+  save.coins += v;
+  save.coinsTotal += v;
   save.bubbles++;
   ui.hudCoins.textContent = G.run.coins;
   sfx.coin(b.gold);
@@ -2600,6 +2939,14 @@ function render(alpha) {
     ctx.drawImage(spr, Math.round(b.x + Math.sin(G.t * 2 + b.ph) * 2) - (spr.width >> 1), sy - (spr.height >> 1));
   }
 
+  // power-ups / downs (blink a little so they read as "special")
+  for (const pk of G.pickups) {
+    const sy = Math.round(pk.wy - cam + Math.sin(G.t * 4 + pk.ph) * 1.5);
+    if (sy < -12 || sy > H + 12) continue;
+    const spr = capsuleSprs[pk.id];
+    ctx.drawImage(spr, Math.round(pk.x) - (spr.width >> 1), sy - (spr.height >> 1));
+  }
+
   // crash: barrel pieces and the rider flying out
   for (const p of G.debris) {
     ctx.save();
@@ -2629,10 +2976,13 @@ function render(alpha) {
       sx = lerp(1.35, 1, e);
       sy = lerp(0.65, 1, e);
     }
+    const ks = barrelScale();
+    const ghostBlink = G.fx.ghost > 0 && Math.floor(G.t * 20) % 2 === 0;
     ctx.save();
+    if (ghostBlink) ctx.globalAlpha = 0.45;
     ctx.translate(Math.round(bx), by);
     ctx.rotate(rot);
-    ctx.scale(sx, sy);
+    ctx.scale(sx * ks, sy * ks);
     // rider: drawn first so the barrel hides everything below the rim
     let up = 0;
     let look = 0;
@@ -2646,6 +2996,13 @@ function render(alpha) {
     const lift = Math.round(lerp(RIDER_LOW, RIDER_HIGH, clamp(up, 0, 1)));
     drawRiderInBarrel(ctx, 0, -BARREL_H / 2, riderSprs[look], riderSkin, barrelSpr, lift);
     ctx.restore();
+    if (G.fx.shield) {
+      ctx.strokeStyle = Math.floor(G.t * 6) % 2 ? '#bfe3ff' : '#7fd3ff';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(Math.round(bx) + 0.5, by + 0.5, 16 * ks, 0, Math.PI * 2);
+      ctx.stroke();
+    }
     ctx.fillStyle = '#eaf7ff';
     const wob = flick & 1;
     ctx.fillRect(Math.round(bx) - 11 - wob, by + 9, 4, 1);
@@ -2702,11 +3059,42 @@ function render(alpha) {
   ctx.fillStyle = 'rgba(220,240,255,0.10)';
   ctx.fillRect(-8, 6, W + 16, 8);
 
+  // fog power-down: only a small circle around the barrel stays visible
+  if (G.fx.fog > 0 && G.state === 'playing') {
+    const fade = Math.min(1, G.fx.fog / 0.6, (POWER_BY_ID.fog.dur - G.fx.fog) / 0.4);
+    const cx = Math.round(bx);
+    const cy = Math.round(curBY);
+    const gr = ctx.createRadialGradient(cx, cy, 20, cx, cy, 58);
+    gr.addColorStop(0, 'rgba(225,235,245,0)');
+    gr.addColorStop(1, `rgba(225,235,245,${0.96 * fade})`);
+    ctx.fillStyle = gr;
+    ctx.fillRect(-8, -8, W + 16, H + 16);
+  }
+
   drawCrowd();
+  drawFxHud();
 
   if (G.flash > 0) {
     ctx.fillStyle = 'rgba(255,255,255,0.75)';
     ctx.fillRect(-8, -8, W + 16, H + 16);
+  }
+}
+
+// Active effects, top right under the record: icon + bar for the time left.
+function drawFxHud() {
+  if (G.state !== 'playing' && G.state !== 'paused') return;
+  let x = W - 13;
+  for (const pw of POWERS) {
+    const left = G.fx[pw.id];
+    if (!(left > 0)) continue;
+    ctx.drawImage(iconSprs[pw.id], x, 18);
+    if (pw.dur) {
+      ctx.fillStyle = '#0f1117';
+      ctx.fillRect(x, 29, 9, 2);
+      ctx.fillStyle = pw.good ? '#3ddc5a' : '#ff3b3b';
+      ctx.fillRect(x, 29, Math.max(1, Math.round((9 * left) / pw.dur)), 2);
+    }
+    x -= 12;
   }
 }
 
@@ -2920,6 +3308,7 @@ if (params.has('test')) {
       refreshAchCount();
     },
     bubbles: () => G.bubbles.map((b) => ({ wy: b.wy, x: b.x, v: b.v })),
+    power: (id) => takePickup({ id, wy: G.cam + curBY, ph: 0 }, G.bx),
     save: () => JSON.parse(JSON.stringify(save)),
     rockList: () => G.rocks.map((r) => ({ wy: r.wy, x: r.x, r: r.r })),
     gaps: () => testGaps.filter((g) => g.wy > G.cam - 30),
