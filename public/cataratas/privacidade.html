@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Política de privacidade | Cataratas no Barril</title>
+  <meta name="description" content="Política de privacidade e exclusão de dados do jogo Cataratas no Barril.">
+  <style>
+    :root { --bg: #0b1a33; --ink: #e8eef8; --muted: #a9b8cf; --gold: #ffd23f; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.6 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
+    main { max-width: 720px; margin: 0 auto; padding: 32px 16px 64px; }
+    h1 { color: var(--gold); font-size: 1.6rem; line-height: 1.3; margin: 0 0 4px; }
+    h2 { color: var(--gold); font-size: 1.15rem; margin: 32px 0 8px; }
+    p, li { color: var(--ink); }
+    .muted { color: var(--muted); font-size: 0.9rem; }
+    a { color: #7fd3ff; }
+    ul { padding-left: 20px; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Política de privacidade</h1>
+  <p class="muted">Cataratas no Barril (app Android <code>dev.godri.cataratas</code>; o site godri.dev/cataratas só traz os links para baixar o app). Atualizada em 24 de novembro de 2026.</p>
+
+  <p>Cataratas no Barril é um jogo feito por um desenvolvedor independente. Ele não tem anúncios, não vende dados e não usa ferramentas de rastreamento ou de publicidade.</p>
+
+  <h2>O que fica só no seu aparelho</h2>
+  <ul>
+    <li>Seu progresso: recordes, moedas, skins, conquistas, ajustes e desafios do dia. Fica salvo no armazenamento do app e não é enviado para nenhum servidor.</li>
+    <li><strong>Microfone</strong> (só se você ligar em AJUSTES): durante a descida, o jogo mede o volume do som para saber se você soprou ou gritou. O áudio é analisado na hora, no próprio aparelho, e nunca é gravado nem enviado.</li>
+    <li><strong>Sensores de movimento</strong>: usados para controlar o barril e para conquistas (chacoalhar, virar o celular). Nada é enviado.</li>
+    <li><strong>Lanterna</strong>: o jogo só liga e desliga a luz do flash. Não usa a câmera.</li>
+    <li><strong>Captura de tela</strong> (Android 14 ou mais novo): o sistema avisa o jogo que um print foi tirado. O jogo não tem acesso à imagem.</li>
+    <li><strong>Lembretes</strong> (app Android, desligáveis em AJUSTES): o jogo agenda no próprio celular uma notificação por dia com o desafio do dia. Nada é enviado para servidor nenhum.</li>
+    <li><strong>Compartilhamento</strong>: quando você compartilha uma descida, o Android informa qual app você escolheu (por exemplo, WhatsApp). O jogo guarda só o nome do app, para liberar conquistas.</li>
+    <li><strong>Bateria, relógio e conexão</strong>: o nível da bateria, se está carregando, a data e hora e se há internet são lidos para conquistas. Nada disso é enviado.</li>
+  </ul>
+
+  <h2>O que é enviado (ranking online)</h2>
+  <p>Só se você escolher um apelido na tela RANKING, o jogo cria uma conta anônima no Firebase (Google) e envia:</p>
+  <ul>
+    <li>um identificador anônimo da conta;</li>
+    <li>o apelido que você escolheu, que aparece publicamente no ranking;</li>
+    <li>suas pontuações: melhor descida, total de metros, melhor descida por dificuldade e número de descidas.</li>
+  </ul>
+  <p>Se você tocar em VINCULAR CONTA GOOGLE, a conta fica ligada à sua conta Google, e o Firebase guarda o seu e-mail e nome do Google para fazer o login. O e-mail não aparece no ranking.</p>
+  <h2>Backup do progresso (só com a conta Google)</h2>
+  <p>Com a conta Google vinculada, o jogo também guarda no Firebase uma cópia do seu progresso, para você não perder nada ao trocar de celular ou reinstalar: moedas, skins, conquistas, recordes e contadores do jogo, além de um identificador aleatório de cada aparelho em que você jogou (não é o identificador do celular, é só um número sorteado pelo jogo). Essa cópia é particular: só a sua conta consegue ler ou alterar.</p>
+  <h2>Convites</h2>
+  <p>Ao tocar em CONVIDAR UM AMIGO, o jogo cria uma conta anônima no Firebase (se você ainda não tiver) e o link do convite leva o identificador anônimo dessa conta. Quando alguém começa a jogar pelo seu link, o Firebase guarda o identificador anônimo dessa pessoa, o seu e se ela era nova no jogo, para que vocês dois ganhem as skins do convite. Nenhum nome, e-mail ou contato é enviado. Quem instala o app pelo link recebe o código pela Google Play (referência de instalação).</p>
+  <p>O jogo também consulta o horário do servidor do Firebase para conferir o relógio do celular. Essa consulta não envia dados seus.</p>
+  <p>Os dados viajam com criptografia (HTTPS) e ficam no Google Cloud (Firebase Authentication e Cloud Firestore). Veja também a <a href="https://firebase.google.com/support/privacy">privacidade do Firebase</a>.</p>
+
+  <h2 id="excluir">Como apagar seus dados</h2>
+  <ul>
+    <li><strong>No jogo:</strong> abra RANKING e toque em APAGAR MEUS DADOS DO RANKING (toque duas vezes para confirmar). Isso apaga na hora o seu apelido, as pontuações do ranking, o backup do progresso, o registro do convite pelo qual você entrou e a conta (anônima ou Google). O progresso salvo no aparelho continua lá.</li>
+    <li><strong>Sem o jogo:</strong> mande um e-mail para <a href="mailto:EMAIL_DE_CONTATO">EMAIL_DE_CONTATO</a> com o assunto "Apagar dados Cataratas" e o apelido usado no ranking. Os dados são apagados em até 30 dias.</li>
+    <li>Para apagar o progresso do aparelho, desinstale o app ou limpe os dados dele nas configurações do Android.</li>
+  </ul>
+  <p>Nenhum dado do ranking ou do backup é guardado depois de apagado.</p>
+
+  <h2>Crianças</h2>
+  <p>O jogo não é direcionado a menores de 13 anos e não coleta dados de propósito de crianças. O ranking é opcional.</p>
+
+  <h2>Mudanças e contato</h2>
+  <p>Se esta política mudar, a nova versão aparece nesta página com a data atualizada. Dúvidas: <a href="mailto:EMAIL_DE_CONTATO">EMAIL_DE_CONTATO</a>.</p>
+</main>
+</body>
+</html>

@@ -2,152 +2,96 @@
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-  <meta name="theme-color" content="#0b1a33">
-  <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <title>Cataratas no Barril | godri.dev</title>
-  <meta name="description" content="Desça a cachoeira dentro de um barril. Jogo de pixel art para celular.">
+  <base href="/cataratas/">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cataratas no Barril</title>
+  <meta name="description" content="Desça a cachoeira dentro de um barril! Jogo de pixel art para celular: incline o celular e desvie das pedras.">
   <meta property="og:title" content="Cataratas no Barril">
-  <meta property="og:description" content="Desça a cachoeira dentro de um barril. Jogo de pixel art para celular.">
-  <meta property="og:url" content="https://godri.dev/cataratas">
-  <meta property="og:type" content="website">
-  <meta property="og:site_name" content="godri.dev">
-  <link rel="canonical" href="https://godri.dev/cataratas">
-  <link rel="manifest" href="/cataratas/manifest.webmanifest">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/cataratas/style.css">
+  <meta property="og:description" content="Desça a cachoeira dentro de um barril! Incline o celular e desvie das pedras.">
+  <meta property="og:image" content="icon.png">
+  <link rel="icon" href="icon.png">
+  <link rel="stylesheet" href="fonts.css">
+  <style>
+    /* Download page: the game itself is only in the apps now. Same palette as the game. */
+    :root { --bg: #0b1a33; --bg2: #123b73; --ink: #e8eef8; --muted: #a9b8cf; --gold: #ffd23f; --shadow: #061022; --water: #1f5fae; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.6 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
+    .pixel { font-family: 'Press Start 2P', ui-monospace, monospace; }
+    header {
+      padding: 48px 16px 40px; text-align: center;
+      background: repeating-linear-gradient(90deg, var(--water) 0 6px, #2a6fc0 6px 9px, var(--water) 9px 14px);
+      border-bottom: 6px solid var(--shadow);
+    }
+    .icon { width: 128px; height: 128px; image-rendering: pixelated; border: 4px solid var(--ink); box-shadow: 6px 6px 0 var(--shadow); }
+    h1 { margin: 24px 0 0; font-size: clamp(24px, 7vw, 40px); line-height: 1.3; color: #fff; text-shadow: 4px 4px 0 var(--shadow); }
+    h1 span { display: block; color: var(--gold); }
+    .tag { margin: 16px auto 0; max-width: 34ch; text-shadow: 2px 2px 0 var(--shadow); font-weight: 600; }
+    main { max-width: 880px; margin: 0 auto; padding: 32px 16px 56px; display: grid; gap: 40px; }
+    main > * { min-width: 0; } /* the screenshot strip scrolls inside, it doesn't widen the page */
+    .stores { display: flex; flex-wrap: wrap; justify-content: center; gap: 16px; }
+    .store {
+      position: relative; display: flex; align-items: center; gap: 12px; min-width: min(220px, 100%); padding: 12px 18px;
+      color: #fff; text-decoration: none; background: #000; border: 3px solid var(--ink); box-shadow: 4px 4px 0 var(--shadow);
+    }
+    .store:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0 var(--shadow); }
+    .store svg { width: 30px; height: 30px; flex: none; }
+    .store small { display: block; font-size: 11px; letter-spacing: 0.04em; color: #c8d0dc; }
+    .store b { display: block; font-size: 20px; line-height: 1.2; }
+    .store.soon { opacity: 0.55; cursor: default; }
+    .store.soon:active { transform: none; box-shadow: 4px 4px 0 var(--shadow); }
+    .badge {
+      position: absolute; top: -12px; right: -10px; padding: 5px 7px; font-size: 9px; color: #1a1408;
+      background: var(--gold); border: 2px solid var(--shadow); transform: rotate(4deg); opacity: 1;
+    }
+    .note { margin: 0; text-align: center; color: var(--muted); font-size: 14px; }
+    h2 { margin: 0 0 16px; font-size: 14px; color: var(--gold); text-align: center; }
+    .shots { display: flex; gap: 14px; overflow-x: auto; padding: 4px 4px 12px; scroll-snap-type: x mandatory; justify-content: safe center; }
+    .shots img { width: 200px; max-width: 60vw; height: auto; flex: none; border: 3px solid var(--ink); box-shadow: 4px 4px 0 var(--shadow); scroll-snap-align: center; }
+    .features { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr)); gap: 12px; }
+    .features li { padding: 14px 16px; background: var(--bg2); border: 3px solid var(--shadow); }
+    .features b { display: block; margin-bottom: 4px; font-size: 11px; color: var(--gold); }
+    footer { padding: 24px 16px 40px; text-align: center; color: var(--muted); font-size: 14px; border-top: 3px solid var(--bg2); }
+    footer a { color: #7fd3ff; }
+  </style>
 </head>
 <body>
-  <canvas id="game" aria-label="Jogo Cataratas"></canvas>
-
-  <div id="hud" hidden>
-    <span class="hud-l"><span id="score">0 m</span><span class="hud-coins"><i class="coin" aria-hidden="true"></i><span id="hudCoins">0</span></span></span>
-    <span id="best">REC 0 m</span>
-  </div>
-  <div id="pop" aria-live="polite"></div>
-  <div id="hint" hidden></div>
-  <div id="aee" hidden aria-hidden="true">UOOEEE</div>
-  <div id="toast" aria-live="polite" hidden></div>
-
-  <section id="title" class="screen">
-    <h1><span class="t1">CATARATAS</span><span class="t2">NO BARRIL</span></h1>
-    <p class="sub">DESÇA A CACHOEIRA<br>DENTRO DE UM BARRIL</p>
-    <p class="how" id="howTo">INCLINE O CELULAR PARA<br>DESVIAR DAS PEDRAS</p>
-    <p class="rec">RECORDE: <span id="titleBest">0</span> m</p>
-    <button id="playBtn" class="primary play" type="button" aria-label="Jogar">
-      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5 3h2v1h1v1h1v1h1v1h1v2h-1v1h-1v1h-1v1h-1v1H5z"/></svg>
-      <span>JOGAR</span>
-    </button>
-    <div class="toggles">
-      <button id="soundBtn" class="icon" type="button" aria-label="Som" aria-pressed="true">
-        <svg viewBox="0 0 16 16" aria-hidden="true">
-          <path d="M2 6h3v4H2zM5 6h1V5h1V4h1V3h1v10H8v-1H7v-1H6v-1H5z"/>
-          <path class="waves" d="M11 6h1v4h-1zM13 4h1v1h1v6h-1v1h-1v-1h1V5h-1z"/>
-          <g class="slash"><path class="slash-bg" d="M2 2L14 14"/><path class="slash-fg" d="M2 2L14 14"/></g>
-        </svg>
-        <span>SOM</span>
-      </button>
-      <button id="shakeBtn" class="icon" type="button" aria-label="Tremor" aria-pressed="true">
-        <svg viewBox="0 0 16 16" aria-hidden="true">
-          <path d="M5 2h6v12H5zM6 3v9h4V3zM7 13h2v-1H7z" fill-rule="evenodd"/>
-          <path class="waves" d="M3 4h1v2H3zM2 7h1v2H2zM3 10h1v2H3zM12 4h1v2h-1zM13 7h1v2h-1zM12 10h1v2h-1z"/>
-          <g class="slash"><path class="slash-bg" d="M2 2L14 14"/><path class="slash-fg" d="M2 2L14 14"/></g>
-        </svg>
-        <span>TREMOR</span>
-      </button>
-      <button id="musicBtn" class="icon" type="button" aria-label="Música" aria-pressed="true">
-        <svg viewBox="0 0 16 16" aria-hidden="true">
-          <path d="M6 2h8v3H8v6H6zM12 5h2v5h-2zM4 10h3v1h1v2H7v1H4v-1H3v-2h1zM10 9h3v1h1v2h-1v1h-3v-1H9v-2h1z"/>
-          <g class="slash"><path class="slash-bg" d="M2 2L14 14"/><path class="slash-fg" d="M2 2L14 14"/></g>
-        </svg>
-        <span>MÚSICA</span>
-      </button>
-    </div>
-    <button id="sensBtn" class="sens" type="button" hidden>INCLINAÇÃO: MÉDIA</button>
-    <div class="menu-row">
-      <button id="shopBtn" class="trophy" type="button" aria-label="Loja">
-        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5 1h6v1h2v2h1v2h1v4h-1v2h-1v2h-2v1H5v-1H3v-2H2v-2H1V6h1V4h1V2h2zM7 4v1H6v2h1v1h2v1H6v2h1v1h2v-1h1V9H9V8H7V7h3V5H9V4z" fill-rule="evenodd"/></svg>
-        <span>LOJA<br><span id="shopCoins">0</span></span>
-      </button>
-      <button id="achBtn" class="trophy" type="button" aria-label="Conquistas">
-        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 2h10v2h2v3h-1v1h-2v1h-1v1H9v2h2v1h1v2H4v-2h1v-1h2v-2H5V9H4V8H2V7H1V4h2zM2 5v1h1V5zM13 5v1h1V5z"/></svg>
-        <span>TROFÉUS<br><span id="achCount">0/0</span></span>
-      </button>
+<header>
+  <img class="icon" src="icon.png" alt="Ícone do Cataratas no Barril" width="128" height="128">
+  <h1 class="pixel">CATARATAS<span>NO BARRIL</span></h1>
+  <p class="tag">Desça a cachoeira dentro de um barril. Incline o celular, desvie das pedras e veja até onde você chega.</p>
+</header>
+<main>
+  <section aria-label="Baixar o jogo">
+    <div class="stores">
+      <a class="store" href="https://play.google.com/store/apps/details?id=dev.godri.cataratas" rel="noopener">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path fill="#3ddc5a" d="M2 1l8 7-8 7z"/><path fill="#ffd23f" d="M10 8l3-2 2 1.2v1.6L13 10z"/><path fill="#3d8fe0" d="M2 1l11 5-3 2z"/><path fill="#ff4d6d" d="M2 15l11-5-3-2z"/></svg>
+        <span><small>DISPONÍVEL NO</small><b>Google Play</b></span>
+      </a>
+      <span class="store soon" aria-label="App Store: em breve">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path fill="#fff" d="M5 2h6v1h1v10h-1v1H5v-1H4V3h1zM5 4v8h6V4zM7 12h2v1H7z" fill-rule="evenodd"/></svg>
+        <span><small>EM BREVE NA</small><b>App Store</b></span>
+        <span class="badge pixel">EM BREVE</span>
+      </span>
     </div>
   </section>
-
-  <section id="ach" class="screen solid" hidden>
-    <h2>CONQUISTAS</h2>
-    <p class="rec" id="achSummary">0/0 LIBERADAS</p>
-    <ul id="achList" class="ach-list"></ul>
-    <button id="achBack" type="button">VOLTAR</button>
-  </section>
-
-  <section id="shop" class="screen solid" hidden>
-    <h2>LOJA</h2>
-    <p class="rec">SALDO: <i class="coin" aria-hidden="true"></i><span id="wallet">0</span> MOEDAS</p>
-    <div class="shop-top">
-      <canvas id="shopPreview" width="28" height="36" aria-hidden="true"></canvas>
-      <div class="shop-info">
-        <p class="shop-name" id="shopName"></p>
-        <p class="shop-desc" id="shopDesc"></p>
-        <button id="shopAction" type="button">USAR</button>
-      </div>
-    </div>
-    <div class="tabs" role="tablist">
-      <button id="tabBarrel" class="tab on" type="button" role="tab" aria-selected="true">BARRIS</button>
-      <button id="tabRider" class="tab" type="button" role="tab" aria-selected="false">PILOTOS</button>
-    </div>
-    <ul id="shopList" class="shop-grid"></ul>
-    <p class="shop-tip">ESTOURE AS BOLHAS DO RIO E GANHE MOEDAS NAS CONQUISTAS</p>
-    <button id="shopBack" type="button">VOLTAR</button>
-  </section>
-
-  <section id="over" class="screen" hidden>
-    <h2>O BARRIL<br>QUEBROU!</h2>
-    <p class="big" id="overScore">0 m</p>
-    <p class="newrec blink" id="newRec" hidden>NOVO RECORDE!</p>
-    <p class="rec">RECORDE: <span id="overBest">0</span> m</p>
-    <p class="coins" id="overCoins"></p>
-    <p class="newach" id="overAch" hidden></p>
-    <button id="againBtn" class="primary play" type="button">
-      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5 3h2v1h1v1h1v1h1v1h1v2h-1v1h-1v1h-1v1h-1v1H5z"/></svg>
-      <span>DE NOVO</span>
-    </button>
-    <button id="menuBtn" type="button">MENU</button>
-    <div class="menu-row">
-      <button id="overShopBtn" class="trophy" type="button" aria-label="Loja">
-        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5 1h6v1h2v2h1v2h1v4h-1v2h-1v2h-2v1H5v-1H3v-2H2v-2H1V6h1V4h1V2h2zM7 4v1H6v2h1v1h2v1H6v2h1v1h2v-1h1V9H9V8H7V7h3V5H9V4z" fill-rule="evenodd"/></svg>
-        <span>LOJA</span>
-      </button>
-      <button id="overAchBtn" class="trophy" type="button" aria-label="Conquistas">
-        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 2h10v2h2v3h-1v1h-2v1h-1v1H9v2h2v1h1v2H4v-2h1v-1h2v-2H5V9H4V8H2V7H1V4h2zM2 5v1h1V5zM13 5v1h1V5z"/></svg>
-        <span>TROFÉUS</span>
-      </button>
+  <p class="note">O jogo é só para celular: ele é controlado inclinando o aparelho.</p>
+  <section aria-label="Telas do jogo">
+    <h2 class="pixel">COMO É</h2>
+    <div class="shots">
+      <img src="shots/01-inicio.png" alt="Tela inicial com o desafio do dia" width="200" height="356" loading="lazy">
+      <img src="shots/02-descida.png" alt="O barril descendo a cachoeira entre as pedras" width="200" height="356" loading="lazy">
+      <img src="shots/05-chuva-fogo.png" alt="Descida na chuva com o barril pegando fogo" width="200" height="356" loading="lazy">
     </div>
   </section>
-
-  <section id="pause" class="screen" hidden>
-    <h2>PAUSADO</h2>
-    <p class="cta blink">TOQUE PARA CONTINUAR</p>
-  </section>
-
-  <section id="rotate" class="screen solid" hidden>
-    <div class="phone" aria-hidden="true"></div>
-    <h2>GIRE O CELULAR<br>NA VERTICAL</h2>
-  </section>
-
-  <section id="desktop" class="screen solid" hidden>
-    <h1><span class="t1">CATARATAS</span><span class="t2">NO BARRIL</span></h1>
-    <p class="sub">ESTE JOGO É FEITO<br>PARA CELULAR</p>
-    <p class="how">ABRA ESTE ENDEREÇO<br>NO SEU CELULAR:</p>
-    <p class="url" id="desktopUrl"></p>
-  </section>
-
-  <script src="/cataratas/js/game.js" defer></script>
+  <ul class="features">
+    <li><b class="pixel">INCLINE PRA JOGAR</b>O barril segue o seu celular. Três dificuldades, da descida tranquila à morte súbita.</li>
+    <li><b class="pixel">DESAFIOS TODO DIA</b>Um desafio do dia, dois mini-desafios e três a mais no sábado e no domingo.</li>
+    <li><b class="pixel">200+ CONQUISTAS</b>Dezenas de barris e pilotos pra liberar, de figuras históricas a vilões de novela.</li>
+    <li><b class="pixel">CLIMA E SURPRESAS</b>Chuva, ventania, tempestade com raios, neblina e miragem. E a torcida a cada 1000 m.</li>
+  </ul>
+</main>
+<footer>
+  <a href="privacidade.html">Política de privacidade</a> · Feito por <a href="https://www.godri.dev">godri.dev</a>
+</footer>
 </body>
 </html>
