@@ -7989,7 +7989,7 @@ function refreshDemo() {
 
 // ---------- ranking (Firebase Auth + Firestore over REST: no SDK, the game stays one script) ----------
 const FB = {
-  key: 'AIzaSyDBOyBoFqvBNuAyHpJGpLITnD99ns-fBEE',
+  key: '',
   project: 'cataratas-no-barril',
   webClientId: '79208843725-pk0v59vdvgbtrhhr1tj6jdk7sethtp6s.apps.googleusercontent.com', // OAuth "Web client" of the project (Google sign-in)
 };
