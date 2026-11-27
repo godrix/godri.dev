@@ -1,0 +1,368 @@
+<!doctype html>
+<!-- Fonte do jogo: projeto cataratas-no-barril (Capacitor), pasta game/. O site é gerado com
+     "npm run publish:web": não edite a cópia que fica no godri.dev. -->
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <base href="/cataratas-demo/">
+  <meta name="description" content="Jogue a demo do Cataratas no Barril no navegador: desça 800 m de cachoeira dentro de um barril.">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#0b1a33">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Cataratas no Barril · demo</title>
+  <meta name="description" content="Desça a cachoeira dentro de um barril. Jogo de pixel art para celular.">
+  <meta property="og:title" content="Cataratas no Barril">
+  <meta property="og:description" content="Desça a cachoeira dentro de um barril. Jogo de pixel art para celular.">
+  <meta property="og:url" content="https://godri.dev/cataratas">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="godri.dev">
+  <link rel="canonical" href="https://godri.dev/cataratas">
+  <link rel="stylesheet" href="fonts.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Studio splash (godri.dev brand: neo-brutalism, cream, yellow, pink). Tap to skip. -->
+  <div id="brand" class="brand" role="img" aria-label="godri.dev studio apresenta">
+    <div class="brand-in">
+      <div class="brand-mark" aria-hidden="true"><span>G</span></div>
+      <p class="brand-word" aria-hidden="true"><span class="bw">g</span><span class="bw">o</span><span class="bw">d</span><span class="bw">r</span><span class="bw">i</span><span class="bw dot">.</span><span class="bw">d</span><span class="bw">e</span><span class="bw">v</span></p>
+      <p class="brand-tag" aria-hidden="true">STUDIO</p>
+      <p class="brand-sub" aria-hidden="true">apresenta</p>
+    </div>
+    <i class="brand-wipe" aria-hidden="true"></i>
+  </div>
+  <canvas id="game" aria-label="Jogo Cataratas"></canvas>
+  <div id="hud" hidden>
+    <span class="hud-l"><span id="score">0 m</span><span class="hud-hp" id="hudHp" aria-label="Vida do barril"><svg class="hp" viewBox="0 0 10 12"><path class="wood" d="M2 0h6v1h1v10H8v1H2v-1H1V1h1z"/><path class="hoop" d="M1 3h8v1H1zM1 8h8v1H1z"/><path class="crack" d="M5 1h1v2H5zM4 4h1v2H4zM5 6h1v2H5zM6 9h1v2H6z"/></svg><svg class="hp" viewBox="0 0 10 12"><path class="wood" d="M2 0h6v1h1v10H8v1H2v-1H1V1h1z"/><path class="hoop" d="M1 3h8v1H1zM1 8h8v1H1z"/><path class="crack" d="M5 1h1v2H5zM4 4h1v2H4zM5 6h1v2H5zM6 9h1v2H6z"/></svg><svg class="hp" viewBox="0 0 10 12"><path class="wood" d="M2 0h6v1h1v10H8v1H2v-1H1V1h1z"/><path class="hoop" d="M1 3h8v1H1zM1 8h8v1H1z"/><path class="crack" d="M5 1h1v2H5zM4 4h1v2H4zM5 6h1v2H5zM6 9h1v2H6z"/></svg><svg class="hp" viewBox="0 0 10 12"><path class="wood" d="M2 0h6v1h1v10H8v1H2v-1H1V1h1z"/><path class="hoop" d="M1 3h8v1H1zM1 8h8v1H1z"/><path class="crack" d="M5 1h1v2H5zM4 4h1v2H4zM5 6h1v2H5zM6 9h1v2H6z"/></svg><svg class="hp" viewBox="0 0 10 12"><path class="wood" d="M2 0h6v1h1v10H8v1H2v-1H1V1h1z"/><path class="hoop" d="M1 3h8v1H1zM1 8h8v1H1z"/><path class="crack" d="M5 1h1v2H5zM4 4h1v2H4zM5 6h1v2H5zM6 9h1v2H6z"/></svg></span><span class="hud-coins" id="hudCoinBox"><i class="coin" aria-hidden="true"></i><span id="hudCoins">0</span></span></span>
+    <button id="pauseBtn" type="button" aria-label="Pausar">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 3h3v10H4zM9 3h3v10H9z"/></svg>
+    </button>
+    <button id="torchBtn" type="button" aria-label="Acender a lanterna" hidden>
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 6h7v4H2zM9 5h2v6H9zM11 4h2v8h-2zM14 3h1v1h-1zM14 7h2v2h-2zM14 12h1v1h-1z"/></svg>
+    </button>
+    <span class="hud-r"><span id="best">REC 0 m</span><span id="wx" hidden><img id="wxIcon" alt=""><span id="wxName"></span></span></span>
+  </div>
+  <div id="pop" aria-live="polite"></div>
+  <div id="say" class="say" aria-live="polite" hidden></div>
+  <div id="hint" hidden></div>
+  <div id="aee" hidden aria-hidden="true">UOOEEE</div>
+  <div id="toast" aria-live="polite" hidden></div>
+  <section id="title" class="screen">
+    <button id="aboutBtn" class="about-btn" type="button" aria-label="Sobre o jogo">?</button>
+    <button id="gemBtn" class="gem-btn" type="button" aria-label="Banco: diamantes e moedas"><i class="gem" aria-hidden="true"></i><span id="titleGems">0</span><b aria-hidden="true">+</b></button>
+    <h1><span class="t1">CATARATAS</span><span class="t2">NO BARRIL</span></h1>
+    <p class="rec">RECORDE: <span id="titleBest">0</span> m</p>
+    <p class="how" id="howTo" hidden></p>
+    <p class="upside-note" id="upsideNote" hidden>MUNDO INVERTIDO ATIVO<br>VIRE O CELULAR DE NOVO PRA SAIR</p>
+    <p class="clock-note" id="clockNote" hidden></p>
+    <button id="dailyBtn" class="daily" type="button" data-diff="1" hidden>
+      <span class="daily-h" id="dailyHead">DESAFIO DO DIA</span>
+      <span class="daily-t" id="dailyText"></span>
+      <span class="daily-s" id="dailyStatus"></span>
+    </button>
+    <button id="chalBtn" class="chal-btn" type="button">DESAFIOS DE HOJE</button>
+    <p class="demo-note" id="demoNote" hidden></p>
+    <button id="demoCtl" class="demo-ctl" type="button" hidden>CONTROLE: INCLINAR</button>
+    <button id="playBtn" class="primary play" type="button" aria-label="Jogar">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5 3h2v1h1v1h1v1h1v1h1v2h-1v1h-1v1h-1v1h-1v1H5z"/></svg>
+      <span>JOGAR</span>
+    </button>
+    <div class="menu-row">
+      <button id="shopBtn" class="trophy" type="button" aria-label="Loja">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5 1h6v1h2v2h1v2h1v4h-1v2h-1v2h-2v1H5v-1H3v-2H2v-2H1V6h1V4h1V2h2zM7 4v1H6v2h1v1h2v1H6v2h1v1h2v-1h1V9H9V8H7V7h3V5H9V4z" fill-rule="evenodd"/></svg>
+        <span>LOJA<br><span id="shopCoins">0</span></span>
+      </button>
+      <button id="achBtn" class="trophy" type="button" aria-label="Conquistas">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 2h10v2h2v3h-1v1h-2v1h-1v1H9v2h2v1h1v2H4v-2h1v-1h2v-2H5V9H4V8H2V7H1V4h2zM2 5v1h1V5zM13 5v1h1V5z"/></svg>
+        <span>TROFÉUS<br><span id="achCount">0/0</span></span>
+      </button>
+      <button id="rankBtn" class="trophy" type="button" aria-label="Ranking">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 2h4v12H6zM1 7h4v7H1zM11 5h4v9h-4zM7 3v2h1V3z"/></svg>
+        <span>RANKING<br><span id="rankPos">---</span></span>
+      </button>
+    </div>
+    <div class="bottom-row">
+      <p class="diff-note" id="diffNote" hidden></p>
+      <button id="diffBtn" class="sens" type="button" data-diff="1">MODO: NORMAL</button>
+      <button id="setBtn" class="gear" type="button" aria-label="Ajustes">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M7 1h2v2H7zM7 13h2v2H7zM1 7h2v2H1zM13 7h2v2h-2zM3 3h2v2H3zM11 3h2v2h-2zM3 11h2v2H3zM11 11h2v2h-2zM5 3h6v2h2v6h-2v2H5v-2H3V5h2zM7 6v1H6v2h1v1h2V9h1V7H9V6z" fill-rule="evenodd"/></svg>
+      </button>
+    </div>
+  </section>
+  <section id="settings" class="screen solid" hidden>
+    <h2>AJUSTES</h2>
+    <div class="toggles">
+      <button id="notifBtn" class="icon" type="button" aria-label="Lembretes" aria-pressed="true" hidden>
+        <svg viewBox="0 0 16 16" aria-hidden="true">
+          <path d="M7 1h2v1h1v1h1v1h1v5h1v2h1v1H2v-1h1V9h1V4h1V3h1V2h1zM6 13h4v1H9v1H7v-1H6z"/>
+          <g class="slash"><path class="slash-bg" d="M2 2L14 14"/><path class="slash-fg" d="M2 2L14 14"/></g>
+        </svg>
+        <span>LEMBRETES</span>
+      </button>
+      <button id="stepsBtn" class="icon" type="button" aria-label="Passos" aria-pressed="false" hidden>
+        <svg viewBox="0 0 16 16" aria-hidden="true">
+          <path d="M4 2h3v4H6v2H4V7H3V3h1zM10 6h3v1h1v4h-1v1h-2v-2h-1zM4 9h2v2H4zM11 13h2v2h-2z"/>
+          <g class="slash"><path class="slash-bg" d="M2 2L14 14"/><path class="slash-fg" d="M2 2L14 14"/></g>
+        </svg>
+        <span>PASSOS</span>
+      </button>
+      <button id="micBtn" class="icon" type="button" aria-label="Microfone" aria-pressed="false">
+        <svg viewBox="0 0 16 16" aria-hidden="true">
+          <path d="M6 1h4v1h1v7h-1v1H6V9H5V2h1zM3 7h1v2h1v1h1v1h4v-1h1V9h1V7h1v2h-1v2h-1v1H9v2h2v1H5v-1h2v-2H5v-1H4V9H3z"/>
+          <g class="slash"><path class="slash-bg" d="M2 2L14 14"/><path class="slash-fg" d="M2 2L14 14"/></g>
+        </svg>
+        <span>MICROFONE</span>
+      </button>
+      <button id="soundBtn" class="icon" type="button" aria-label="Som" aria-pressed="true">
+        <svg viewBox="0 0 16 16" aria-hidden="true">
+          <path d="M2 6h3v4H2zM5 6h1V5h1V4h1V3h1v10H8v-1H7v-1H6v-1H5z"/>
+          <path class="waves" d="M11 6h1v4h-1zM13 4h1v1h1v6h-1v1h-1v-1h1V5h-1z"/>
+          <g class="slash"><path class="slash-bg" d="M2 2L14 14"/><path class="slash-fg" d="M2 2L14 14"/></g>
+        </svg>
+        <span>SOM</span>
+      </button>
+      <button id="shakeBtn" class="icon" type="button" aria-label="Tremor" aria-pressed="true">
+        <svg viewBox="0 0 16 16" aria-hidden="true">
+          <path d="M5 2h6v12H5zM6 3v9h4V3zM7 13h2v-1H7z" fill-rule="evenodd"/>
+          <path class="waves" d="M3 4h1v2H3zM2 7h1v2H2zM3 10h1v2H3zM12 4h1v2h-1zM13 7h1v2h-1zM12 10h1v2h-1z"/>
+          <g class="slash"><path class="slash-bg" d="M2 2L14 14"/><path class="slash-fg" d="M2 2L14 14"/></g>
+        </svg>
+        <span>TREMOR</span>
+      </button>
+      <button id="musicBtn" class="icon" type="button" aria-label="Música" aria-pressed="true">
+        <svg viewBox="0 0 16 16" aria-hidden="true">
+          <path d="M6 2h8v3H8v6H6zM12 5h2v5h-2zM4 10h3v1h1v2H7v1H4v-1H3v-2h1zM10 9h3v1h1v2h-1v1h-3v-1H9v-2h1z"/>
+          <g class="slash"><path class="slash-bg" d="M2 2L14 14"/><path class="slash-fg" d="M2 2L14 14"/></g>
+        </svg>
+        <span>MÚSICA</span>
+      </button>
+    </div>
+    <p class="mic-info" id="micInfo"></p>
+    <div class="tabs lang-tabs" id="langTabs" role="group" aria-label="Idioma">
+      <button type="button" class="tab" data-lang="pt" lang="pt-BR"><svg class="flag" viewBox="0 0 14 10" aria-hidden="true"><path fill="#1e9e45" d="M0 0h14v10H0z"/><path fill="#ffd23f" d="M7 1l6 4-6 4-6-4z"/><circle fill="#1f4fa8" cx="7" cy="5" r="2.2"/><path fill="#ffffff" d="M5 4.6h4v.6H5z"/></svg><span>PORTUGUÊS</span></button>
+      <button type="button" class="tab" data-lang="en" lang="en"><svg class="flag" viewBox="0 0 14 10" aria-hidden="true"><path fill="#ffffff" d="M0 0h14v10H0z"/><path fill="#c8283c" d="M0 0h14v1H0zM0 2h14v1H0zM0 4h14v1H0zM0 6h14v1H0zM0 8h14v1H0z"/><path fill="#26408a" d="M0 0h6v5H0z"/><path fill="#ffffff" d="M1 1h1v1H1zM3 1h1v1H3zM2 2h1v1H2zM4 2h1v1H4zM1 3h1v1H1zM3 3h1v1H3z"/></svg><span>ENGLISH</span></button>
+      <button type="button" class="tab" data-lang="es" lang="es"><svg class="flag" viewBox="0 0 14 10" aria-hidden="true"><path fill="#c8283c" d="M0 0h14v10H0z"/><path fill="#ffd23f" d="M0 2.5h14v5H0z"/><path fill="#9a2a1a" d="M3 4h2v2H3z"/></svg><span>ESPAÑOL</span></button>
+    </div>
+    <button id="adPrivacyBtn" class="link" type="button" hidden>PRIVACIDADE DOS ANÚNCIOS</button>
+    <button id="setBack" type="button">VOLTAR</button>
+  </section>
+  <section id="ach" class="screen solid" hidden>
+    <h2 id="achTitle">CONQUISTAS</h2>
+    <p class="rec" id="achSummary">0/0 LIBERADAS</p>
+    <ul id="achList" class="ach-list"></ul>
+    <div class="over-row ach-row">
+      <button id="achDiary" type="button">DIÁRIO</button>
+      <button id="achBack" type="button">VOLTAR</button>
+    </div>
+  </section>
+  <section id="sum" class="screen solid" hidden>
+    <h2>RESUMO DA DESCIDA</h2>
+    <div id="sumBody" class="sum-body"></div>
+    <div class="over-row">
+      <button id="sumShop" type="button" hidden>VER NA LOJA</button>
+      <button id="sumBack" type="button">VOLTAR</button>
+    </div>
+  </section>
+  <section id="demoEnd" class="screen solid demo-end" hidden>
+    <h2 id="demoEndTitle">VOCÊ CHEGOU!</h2>
+    <p class="demo-end-text" id="demoEndText"></p>
+    <div class="demo-stores">
+      <a class="demo-store" href="https://play.google.com/store/apps/details?id=dev.godri.cataratas" target="_blank" rel="noopener">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path fill="#3ddc5a" d="M2 1l8 7-8 7z"/><path fill="#ffd23f" d="M10 8l3-2 2 1.2v1.6L13 10z"/><path fill="#3d8fe0" d="M2 1l11 5-3 2z"/><path fill="#ff4d6d" d="M2 15l11-5-3-2z"/></svg>
+        <span><small>DISPONÍVEL NO</small><b>Google Play</b></span>
+      </a>
+      <span class="demo-store soon" aria-label="App Store: em breve">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path fill="#fff" d="M5 2h6v1h1v10h-1v1H5v-1H4V3h1zM5 4v8h6V4zM7 12h2v1H7z" fill-rule="evenodd"/></svg>
+        <span><small>EM BREVE NA</small><b>App Store</b></span>
+      </span>
+    </div>
+    <button id="demoAgain" class="primary" type="button">JOGAR DE NOVO</button>
+  </section>
+  <section id="update" class="screen solid update" hidden role="dialog" aria-modal="true" aria-labelledby="updateTitle">
+    <h2 id="updateTitle">ATUALIZE O JOGO</h2>
+    <p class="update-text" id="updateText"></p>
+    <p class="update-ver" id="updateVer"></p>
+    <button id="updateGo" class="primary" type="button">ATUALIZAR NA LOJA</button>
+    <button id="updateLater" type="button">AGORA NÃO</button>
+  </section>
+  <section id="about" class="screen solid" hidden>
+    <h2>SOBRE</h2>
+    <div id="aboutBody" class="sum-body about-body">
+      <p class="about-logo">CATARATAS<br><span>NO BARRIL</span></p>
+      <button id="aboutVer" class="about-ver" type="button">VERSÃO</button>
+      <h3>COMO O BARRIL SE MEXE</h3>
+      <canvas id="tutCanvas" class="tut-canvas" width="180" height="64" aria-hidden="true"></canvas>
+      <p id="tutStep" class="about-p tut-step"></p>
+      <ul id="tutChecks" class="tut-checks"></ul>
+      <button id="tutCal" class="tut-cal" type="button">CALIBRAR AQUI</button>
+      <h3>CONVIDE UM AMIGO</h3>
+      <p id="inviteInfo" class="about-p"></p>
+      <button id="inviteBtn" class="tut-cal invite-btn" type="button">CONVIDAR UM AMIGO</button>
+      <h3>SENSORES DO SEU CELULAR</h3>
+      <ul id="sensorList" class="sensor-list"></ul>
+      <h3>QUEM FEZ</h3>
+      <a class="about-brand" href="https://godri.dev" target="_blank" rel="noopener" aria-label="godri.dev studio: abrir o site">
+        <span class="ab-mark" aria-hidden="true">G</span>
+        <span class="ab-txt" aria-hidden="true">
+          <span class="ab-word">godri<span class="ab-dot">.</span>dev</span>
+          <span class="ab-tag">STUDIO</span>
+        </span>
+      </a>
+      <p class="about-p">FEITO POR CARLOS GODRI, COM MUITO CAFÉ, NENHUM BARRIL DE VERDADE E UMA QUANTIDADE PREOCUPANTE DE DESCIDAS DE TESTE.</p>
+      <p class="about-p dim">GODRI.DEV · GODRI.DEV/CATARATAS</p>
+      <h3>PIADA DE BARRIL</h3>
+      <p id="aboutJoke" class="about-p joke"></p>
+      <button id="aboutJokeBtn" class="tut-cal" type="button">OUTRA PIADA</button>
+      <p class="about-p dim">NENHUM BARRIL DE VERDADE FOI FERIDO NA PRODUÇÃO DESTE JOGO. OS DE PIXEL, TODOS.</p>
+    </div>
+    <button id="aboutBack" type="button">VOLTAR</button>
+  </section>
+  <section id="chal" class="screen solid" hidden>
+    <h2>DESAFIOS</h2>
+    <div id="chalBody" class="sum-body chal-body"></div>
+    <button id="chalBack" type="button">VOLTAR</button>
+  </section>
+  <section id="shop" class="screen solid" hidden>
+    <h2>LOJA</h2>
+    <p class="rec shop-bal">SALDO: <i class="coin" aria-hidden="true"></i><span id="wallet">0</span> <button id="shopGemBtn" class="gem-chip" type="button" aria-label="Diamantes: abrir o banco"><i class="gem" aria-hidden="true"></i><span id="shopGems">0</span> +</button></p>
+    <div class="shop-top" id="shopTop">
+      <canvas id="shopPreview" width="28" height="36" aria-hidden="true"></canvas>
+      <div class="shop-info">
+        <p class="shop-name" id="shopName"></p>
+        <p class="shop-desc" id="shopDesc"></p>
+        <button id="shopAction" type="button">USAR</button>
+      </div>
+    </div>
+    <div class="tabs" role="tablist">
+      <button id="tabBarrel" class="tab on" type="button" role="tab" aria-selected="true">BARRIS</button>
+      <button id="tabRider" class="tab" type="button" role="tab" aria-selected="false">PILOTOS</button>
+      <button id="tabTune" class="tab" type="button" role="tab" aria-selected="false">OFICINA</button>
+    </div>
+    <ul id="shopList" class="shop-grid"></ul>
+    <div id="tuneBody" class="sum-body tune-body" hidden></div>
+    <p class="shop-tip" id="shopTip">ESTOURE AS BOLHAS DO RIO E GANHE MOEDAS NAS CONQUISTAS</p>
+    <div class="over-row shop-foot">
+      <button id="shopCodeBtn" type="button">CÓDIGO</button>
+      <button id="shopNfcBtn" type="button" hidden>NFC</button>
+      <button id="shopBack" type="button">VOLTAR</button>
+    </div>
+  </section>
+  <section id="store" class="screen solid" hidden>
+    <h2>BANCO</h2>
+    <p class="rec store-bal"><i class="coin" aria-hidden="true"></i><span id="storeCoins">0</span> <i class="gem" aria-hidden="true"></i><span id="storeGems">0</span></p>
+    <div id="storeBody" class="sum-body store-body"></div>
+    <p class="store-note" id="storeNote" aria-live="polite"></p>
+    <button id="storeBack" type="button">VOLTAR</button>
+  </section>
+  <section id="lab" class="screen solid" hidden>
+    <h2>LABORATÓRIO NFC</h2>
+    <p class="about-p lab-help">ENCOSTE UM BILHETE, CRACHÁ, TAG OU CHAVEIRO COM NFC ATRÁS DO CELULAR. CADA OBJETO GERA UMA CRIATURA ÚNICA (SEMPRE A MESMA), COM PILOTO E BARRIL. O JOGO SÓ LÊ O NÚMERO DO CHIP, NUNCA O QUE TEM DENTRO.</p>
+    <canvas id="labPreview" width="28" height="36" aria-hidden="true"></canvas>
+    <p class="shop-name" id="labName"></p>
+    <p class="lab-msg" id="labMsg" aria-live="polite"></p>
+    <div class="over-row lab-row">
+      <button id="labScan" type="button">ESCANEAR</button>
+      <button id="labUse" type="button">USAR ESSA CRIATURA</button>
+    </div>
+    <ul id="labSlots" class="shop-grid lab-slots"></ul>
+    <button id="labBack" type="button">VOLTAR</button>
+  </section>
+  <section id="redeem" class="screen solid" hidden>
+    <h2>RESGATAR CÓDIGO</h2>
+    <p class="about-p redeem-help">GANHOU UM CÓDIGO? DIGITE AQUI PRA LIBERAR MOEDAS, DIAMANTES OU SKINS ESPECIAIS. PRECISA DE INTERNET.</p>
+    <form class="name-form" id="redeemForm" autocomplete="off">
+      <input id="redeemInput" type="text" maxlength="24" placeholder="CÓDIGO" aria-label="Código" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="go">
+      <button type="submit" id="redeemGo">RESGATAR</button>
+    </form>
+    <p class="redeem-msg" id="redeemMsg" aria-live="polite"></p>
+    <button id="redeemBack" type="button">VOLTAR</button>
+  </section>
+  <section id="revive" class="screen" hidden>
+    <h2>SOBREVIDA?</h2>
+    <p class="big" id="reviveM">0 m</p>
+    <p class="revive-note">CONTINUE DE ONDE PAROU.<br>O RANKING CONTA SÓ ATÉ AQUI.</p>
+    <button id="reviveAd" class="primary" type="button" hidden>ASSISTIR UM VÍDEO</button>
+    <button id="reviveGem" type="button">USAR 3</button>
+    <div class="revive-bar" aria-hidden="true"><i id="reviveBar"></i></div>
+    <button id="reviveNo" class="link" type="button">NÃO, OBRIGADO</button>
+  </section>
+  <section id="rank" class="screen solid" hidden>
+    <h2>RANKING</h2>
+    <div class="tabs rank-tabs" id="rankTabs" role="tablist"></div>
+    <p class="rank-note" id="rankNote"></p>
+    <ol class="rank-list" id="rankList"></ol>
+    <p class="rank-me" id="rankMe"></p>
+    <form class="name-form" id="nameForm" autocomplete="off">
+      <input id="nameInput" type="text" maxlength="12" placeholder="SEU APELIDO" aria-label="Apelido no ranking" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="done">
+      <button type="submit">SALVAR</button>
+    </form>
+    <button id="googleBtn" class="google" type="button" hidden>VINCULAR CONTA GOOGLE</button>
+    <p class="rank-small" id="googleInfo"></p>
+    <button id="rankDelete" class="link" type="button" hidden>APAGAR MEUS DADOS DO RANKING</button>
+    <button id="rankBack" type="button">VOLTAR</button>
+  </section>
+  <section id="over" class="screen" hidden>
+    <h2>O BARRIL<br>QUEBROU!</h2>
+    <p class="big" id="overScore">0 m</p>
+    <p class="newrec blink" id="newRec" hidden>NOVO RECORDE!</p>
+    <p class="rec">RECORDE: <span id="overBest">0</span> m</p>
+    <p class="coins" id="overCoins"></p>
+    <button id="overSumBtn" class="sum-btn" type="button"><span class="newach" id="overAch" hidden></span><span class="sum-go">VER RESUMO <svg viewBox="0 0 8 8" aria-hidden="true"><path d="M2 0h2v1h1v1h1v1h1v2H6v1H5v1H4v1H2V7h1V6h1V5h1V3H4V2H3V1H2z"/></svg></span></button>
+    <p class="over-daily" id="overDaily" hidden></p>
+    <p class="over-gems" id="overGems" hidden></p>
+    <p class="over-rank" id="overRank" hidden></p>
+    <button id="againBtn" class="primary play" type="button">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5 3h2v1h1v1h1v1h1v1h1v2h-1v1h-1v1h-1v1h-1v1H5z"/></svg>
+      <span>DE NOVO</span>
+    </button>
+    <div class="over-row">
+      <button id="menuBtn" type="button">MENU</button>
+      <button id="shareBtn" class="share" type="button" aria-label="Compartilhar">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M11 1h3v3h-3zM2 6h3v3H2zM11 11h3v3h-3zM5 6h2v1h2V6h1V5h1V4h-1v1H9v1H7v1H5zM5 8h2v1h2v1h1v1h1v1h-1v-1H9V9H7v1H5z"/></svg>
+        <span>COMPARTILHAR</span>
+      </button>
+    </div>
+    <div class="menu-row">
+      <button id="overShopBtn" class="trophy" type="button" aria-label="Loja">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5 1h6v1h2v2h1v2h1v4h-1v2h-1v2h-2v1H5v-1H3v-2H2v-2H1V6h1V4h1V2h2zM7 4v1H6v2h1v1h2v1H6v2h1v1h2v-1h1V9H9V8H7V7h3V5H9V4z" fill-rule="evenodd"/></svg>
+        <span>LOJA</span>
+      </button>
+      <button id="overAchBtn" class="trophy" type="button" aria-label="Conquistas">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 2h10v2h2v3h-1v1h-2v1h-1v1H9v2h2v1h1v2H4v-2h1v-1h2v-2H5V9H4V8H2V7H1V4h2zM2 5v1h1V5zM13 5v1h1V5z"/></svg>
+        <span>TROFÉUS</span>
+      </button>
+      <button id="overRankBtn" class="trophy" type="button" aria-label="Ranking">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 2h4v12H6zM1 7h4v7H1zM11 5h4v9h-4zM7 3v2h1V3z"/></svg>
+        <span>RANKING</span>
+      </button>
+    </div>
+  </section>
+  <section id="pause" class="screen" hidden>
+    <h2>PAUSADO</h2>
+    <div class="pause-menu">
+      <button id="pauseGo" class="primary" type="button">CONTINUAR</button>
+      <div class="pause-row">
+        <button id="pauseSound" type="button" aria-pressed="true">SOM</button>
+        <button id="pauseMusic" type="button" aria-pressed="true">MÚSICA</button>
+      </div>
+      <button id="pauseQuit" class="pause-quit" type="button">SAIR DA DESCIDA</button>
+      <p class="pause-warn" id="pauseWarn" hidden>VOCÊ PERDE ESTA DESCIDA: OS METROS NÃO CONTAM E AS MOEDAS DELA SOMEM.<br>TOQUE DE NOVO PRA SAIR.</p>
+    </div>
+  </section>
+  <section id="rotate" class="screen solid" hidden>
+    <div class="phone" aria-hidden="true"></div>
+    <h2>GIRE O CELULAR<br>NA VERTICAL</h2>
+  </section>
+  <section id="desktop" class="screen solid" hidden>
+    <h1><span class="t1">CATARATAS</span><span class="t2">NO BARRIL</span></h1>
+    <p class="sub">ESTE JOGO É FEITO<br>PARA CELULAR</p>
+    <p class="how">ABRA ESTE ENDEREÇO<br>NO SEU CELULAR:</p>
+    <p class="url" id="desktopUrl"></p>
+  </section>
+  <script>window.CATARATAS_DEMO = true;</script>
+  <script src="js/lang.js" defer></script>
+  <script src="js/game.js" defer></script>
+</body>
+</html>

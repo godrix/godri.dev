@@ -5,6 +5,8 @@ const nextConfig: NextConfig = {
     return [
       { source: "/cataratas", destination: "/cataratas/index.html" },
       { source: "/cataratas/", destination: "/cataratas/index.html" },
+      { source: "/cataratas-demo", destination: "/cataratas-demo/index.html" },
+      { source: "/cataratas-demo/", destination: "/cataratas-demo/index.html" },
     ];
   },
 };

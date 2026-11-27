@@ -44,6 +44,12 @@
       background: var(--gold); border: 2px solid var(--shadow); transform: rotate(4deg); opacity: 1;
     }
     .note { margin: 0; text-align: center; color: var(--muted); font-size: 14px; }
+    .demo-link { margin: 0; text-align: center; }
+    .demo-btn {
+      display: inline-block; padding: 14px 20px; font-size: 11px; color: #fff; text-decoration: none;
+      background: #2e8a3e; border: 3px solid var(--ink); box-shadow: 4px 4px 0 var(--shadow);
+    }
+    .demo-btn:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0 var(--shadow); }
     h2 { margin: 0 0 16px; font-size: 14px; color: var(--gold); text-align: center; }
     .shots { display: flex; gap: 14px; overflow-x: auto; padding: 4px 4px 12px; scroll-snap-type: x mandatory; justify-content: safe center; }
     .shots img { width: 200px; max-width: 60vw; height: auto; flex: none; border: 3px solid var(--ink); box-shadow: 4px 4px 0 var(--shadow); scroll-snap-align: center; }
@@ -74,13 +80,14 @@
       </span>
     </div>
   </section>
-  <p class="note">O jogo é só para celular: ele é controlado inclinando o aparelho.</p>
+  <p class="note">O jogo é para celular: ele é controlado inclinando o aparelho.</p>
+  <p class="demo-link"><a class="demo-btn pixel" href="https://www.godri.dev/cataratas-demo">JOGUE A DEMO NO NAVEGADOR</a></p>
   <section aria-label="Telas do jogo">
     <h2 class="pixel">COMO É</h2>
     <div class="shots">
       <img src="shots/01-inicio.png" alt="Tela inicial com o desafio do dia" width="200" height="356" loading="lazy">
       <img src="shots/02-descida.png" alt="O barril descendo a cachoeira entre as pedras" width="200" height="356" loading="lazy">
-      <img src="shots/05-chuva-fogo.png" alt="Descida na chuva com o barril pegando fogo" width="200" height="356" loading="lazy">
+      <img src="shots/05-tempestade.png" alt="Descida na tempestade, com o escudo ligado" width="200" height="356" loading="lazy">
     </div>
   </section>
   <ul class="features">

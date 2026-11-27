@@ -21,9 +21,9 @@
 <body>
 <main>
   <h1>Política de privacidade</h1>
-  <p class="muted">Cataratas no Barril (app Android <code>dev.godri.cataratas</code>; o site godri.dev/cataratas só traz os links para baixar o app). Atualizada em 24 de novembro de 2026.</p>
+  <p class="muted">Cataratas no Barril (app Android <code>dev.godri.cataratas</code>; o site godri.dev/cataratas só traz os links para baixar o app). Atualizada em 25 de novembro de 2026.</p>
 
-  <p>Cataratas no Barril é um jogo feito por um desenvolvedor independente. Ele não tem anúncios, não vende dados e não usa ferramentas de rastreamento ou de publicidade.</p>
+  <p>Cataratas no Barril é um jogo feito por um desenvolvedor independente. Ele não vende dados. O app Android mostra anúncios do Google AdMob (que podem ser removidos com uma compra) e tem compras opcionais pela Google Play, explicados abaixo.</p>
 
   <h2>O que fica só no seu aparelho</h2>
   <ul>
@@ -34,6 +34,9 @@
     <li><strong>Captura de tela</strong> (Android 14 ou mais novo): o sistema avisa o jogo que um print foi tirado. O jogo não tem acesso à imagem.</li>
     <li><strong>Lembretes</strong> (app Android, desligáveis em AJUSTES): o jogo agenda no próprio celular uma notificação por dia com o desafio do dia. Nada é enviado para servidor nenhum.</li>
     <li><strong>Compartilhamento</strong>: quando você compartilha uma descida, o Android informa qual app você escolheu (por exemplo, WhatsApp). O jogo guarda só o nome do app, para liberar conquistas.</li>
+    <li><strong>Contador de passos</strong> (só se você ligar PASSOS em AJUSTES, com a permissão de atividade física do Android): o jogo lê o contador de passos do celular para conquistas e guarda só a última leitura e o total que ele contou. Os passos nunca saem do aparelho, nem no backup.</li>
+    <li><strong>Sensores de luz e de proximidade e fone de ouvido</strong>: durante a descida o jogo lê a luz do ambiente, se algo cobre o topo da tela e se há um fone conectado, para conquistas. Nada é guardado além das conquistas.</li>
+    <li><strong>NFC</strong> (LABORATÓRIO NFC, só quando você toca em ESCANEAR): o jogo lê apenas o número de série do chip encostado, nunca o conteúdo, e guarda um código embaralhado (hash) dele para gerar a criatura. Com a conta Google vinculada, esse código vai junto no backup do progresso.</li>
     <li><strong>Bateria, relógio e conexão</strong>: o nível da bateria, se está carregando, a data e hora e se há internet são lidos para conquistas. Nada disso é enviado.</li>
   </ul>
 
@@ -46,7 +49,11 @@
   </ul>
   <p>Se você tocar em VINCULAR CONTA GOOGLE, a conta fica ligada à sua conta Google, e o Firebase guarda o seu e-mail e nome do Google para fazer o login. O e-mail não aparece no ranking.</p>
   <h2>Backup do progresso (só com a conta Google)</h2>
-  <p>Com a conta Google vinculada, o jogo também guarda no Firebase uma cópia do seu progresso, para você não perder nada ao trocar de celular ou reinstalar: moedas, skins, conquistas, recordes e contadores do jogo, além de um identificador aleatório de cada aparelho em que você jogou (não é o identificador do celular, é só um número sorteado pelo jogo). Essa cópia é particular: só a sua conta consegue ler ou alterar.</p>
+  <p>Com a conta Google vinculada, o jogo também guarda no Firebase uma cópia do seu progresso, para você não perder nada ao trocar de celular ou reinstalar: moedas, diamantes, skins, conquistas, melhorias da oficina, recordes, contadores do jogo e os identificadores das compras já entregues, além de um identificador aleatório de cada aparelho em que você jogou (não é o identificador do celular, é só um número sorteado pelo jogo). Essa cópia é particular: só a sua conta consegue ler ou alterar.</p>
+  <h2>Anúncios (Google AdMob)</h2>
+  <p>O app Android mostra um banner nos menus, uma propaganda de tela cheia de vez em quando entre as descidas e, só se você escolher, um vídeo em troca de uma SOBREVIDA. Os anúncios são do Google AdMob. Para mostrar e medir os anúncios, o SDK do Google coleta dados do aparelho, como o ID de publicidade do Android, o endereço IP, o modelo do aparelho e as interações com o anúncio, conforme a <a href="https://policies.google.com/technologies/partner-sites">política do Google para apps parceiros</a>. Onde a lei exige (por exemplo, na União Europeia), o jogo pede o seu consentimento antes, e você pode mudar a escolha em AJUSTES, PRIVACIDADE DOS ANÚNCIOS. Você pode zerar ou desativar o ID de publicidade nas configurações do Android (Google, Anúncios). A compra REMOVER ANÚNCIOS tira o banner e as propagandas de tela cheia.</p>
+  <h2>Compras no app (Google Play)</h2>
+  <p>Diamantes, moedas e REMOVER ANÚNCIOS são vendidos pela Google Play. O pagamento é feito inteiramente pela Google: o jogo não vê nem guarda dados de cartão ou de pagamento. O jogo guarda só o identificador de cada compra já entregue (para não entregar a mesma compra duas vezes) e, com a conta Google vinculada, inclui isso no backup do progresso.</p>
   <h2>Convites</h2>
   <p>Ao tocar em CONVIDAR UM AMIGO, o jogo cria uma conta anônima no Firebase (se você ainda não tiver) e o link do convite leva o identificador anônimo dessa conta. Quando alguém começa a jogar pelo seu link, o Firebase guarda o identificador anônimo dessa pessoa, o seu e se ela era nova no jogo, para que vocês dois ganhem as skins do convite. Nenhum nome, e-mail ou contato é enviado. Quem instala o app pelo link recebe o código pela Google Play (referência de instalação).</p>
   <p>O jogo também consulta o horário do servidor do Firebase para conferir o relógio do celular. Essa consulta não envia dados seus.</p>
